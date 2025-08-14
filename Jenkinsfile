@@ -1,3 +1,4 @@
+
 pipeline {
     agent any
 
@@ -21,7 +22,7 @@ pipeline {
         stage('Build Frontend') {
             steps {
                 dir('frontend') {
-                    sh 'CI=false npm install && CI=false npm run build'
+                    sh 'npm install && npm run build'
                 }
             }
         }
@@ -40,12 +41,8 @@ pipeline {
 
         stage('Tests') {
             steps {
-                dir('backend') {
-                    sh 'source venv/bin/activate && pytest || true'
-                }
-                dir('frontend') {
-                    sh 'CI=false npm test -- --watchAll=false || true'
-                }
+                sh 'cd backend && source venv/bin/activate && pytest || true'
+                sh 'cd frontend && npm test -- --watchAll=false || true'
             }
         }
     }
