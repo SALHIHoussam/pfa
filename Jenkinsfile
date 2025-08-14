@@ -21,7 +21,7 @@ pipeline {
         stage('Build Frontend') {
             steps {
                 dir('frontend') {
-                    sh 'npm install && npm run build'
+                    sh 'CI=false npm install && CI=false npm run build'
                 }
             }
         }
@@ -40,8 +40,12 @@ pipeline {
 
         stage('Tests') {
             steps {
-                sh 'cd backend && source venv/bin/activate && pytest || true'
-                sh 'cd frontend && npm test -- --watchAll=false || true'
+                dir('backend') {
+                    sh 'source venv/bin/activate && pytest || true'
+                }
+                dir('frontend') {
+                    sh 'CI=false npm test -- --watchAll=false || true'
+                }
             }
         }
     }
