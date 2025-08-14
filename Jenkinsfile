@@ -18,7 +18,7 @@ pipeline {
         stage('Checkout') {
             steps {
                 git branch: 'stagepfa',
-                    url: 'https://github.com/ton-compte/ton-repo.git'
+                    url: 'https://github.com/SALHIHoussam/pfa.git'
             }
         }
 
