@@ -1,6 +1,10 @@
 pipeline {
     agent any
 
+    tools {
+        nodejs "node-18"
+    }
+
     triggers {
         githubPush()
     }
@@ -9,7 +13,8 @@ pipeline {
         stage('Checkout') {
             steps {
                 git branch: 'stagepfa',
-                    url: 'https://github.com/SALHIHoussam/pfa.git'
+                    url: 'https://github.com/SALHIHoussam/pfa.git',
+                    credentialsId: 'GITHUB_TOKEN_PFA'
             }
         }
 
