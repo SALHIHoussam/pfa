@@ -5,7 +5,7 @@ pipeline {
     stages {
         stage('Clone repository') {
             steps {
-                git branch: 'stagepfa', url: 'https://github.com/TON_COMPTE/TON_REPO.git'
+                git branch: 'stagepfa', url: 'https://github.com/SALHIHoussam/pfa.git'
             }
         }
 
