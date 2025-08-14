@@ -1,70 +1,63 @@
 pipeline {
     agent any
 
-    environment {
-        BACKEND_DIR = "backend"    // dossier Flask
-        FRONTEND_DIR = "frontend"  // dossier React
-        PYTHON_VERSION = "3.10"
-        NODE_VERSION = "18"
+    triggers {
+        // Déclenchement via webhook ou POST
+        GenericTrigger(
+            causeString: 'Triggered by Git webhook',
+            genericVariables: [
+                [key: 'ref', value: '$.ref']
+            ],
+            token: '	GITHUB_TOKEN_PFA', // à configurer dans Jenkins
+            printContributedVariables: true,
+            printPostContent: true
+        )
     }
 
     stages {
         stage('Checkout') {
             steps {
-                git branch: 'stagepfa', url: 'https://github.com/SALHIHoussam/pfa.git'
+                git branch: 'stagepfa',
+                    url: 'https://github.com/ton-compte/ton-repo.git'
             }
         }
 
-        stage('Setup Backend (Flask)') {
+        stage('Frontend - Build React') {
             steps {
-                dir("${BACKEND_DIR}") {
-                    sh """
-                        python${PYTHON_VERSION} -m venv venv
-                        . venv/bin/activate
-                        pip install --upgrade pip
-                        pip install -r requirements.txt
-                    """
+                dir('frontend') {
+                    sh '''
+                    npm install
+                    npm run build
+                    '''
                 }
             }
         }
 
-        stage('Setup Frontend (React)') {
+        stage('Backend - Setup Flask') {
             steps {
-                dir("${FRONTEND_DIR}") {
-                    sh """
-                        curl -fsSL https://deb.nodesource.com/setup_${NODE_VERSION}.x | sudo -E bash -
-                        sudo apt-get install -y nodejs
-                        npm install
-                        npm run build
-                    """
+                dir('backend') {
+                    sh '''
+                    python3 -m venv venv
+                    source venv/bin/activate
+                    pip install -r requirements.txt
+                    '''
                 }
             }
         }
 
-        stage('Run Backend Tests') {
+        stage('Tests') {
             steps {
-                dir("${BACKEND_DIR}") {
-                    sh """
-                        . venv/bin/activate
-                        pytest || echo "No backend tests found"
-                    """
-                }
-            }
-        }
-
-        stage('Run Frontend Tests') {
-            steps {
-                dir("${FRONTEND_DIR}") {
-                    sh """
-                        npm test || echo "No frontend tests found"
-                    """
-                }
+                sh '''
+                cd backend && source venv/bin/activate && pytest
+                cd ../frontend && npm test -- --watchAll=false
+                '''
             }
         }
 
         stage('Deploy') {
             steps {
-                echo 'Déploiement ici (Docker, serveur, etc.)'
+                echo 'Déploiement en cours...'
+                // Ici tu mets la commande pour copier sur ton serveur ou Docker
             }
         }
     }
