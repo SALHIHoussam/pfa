@@ -10,6 +10,13 @@ pipeline {
     }
 
     stages {
+        stage('Clean') {
+            steps {
+                echo '🧹 Nettoyage du workspace...'
+                cleanWs()  // Supprime tout le contenu du workspace Jenkins
+            }
+        }
+
         stage('Checkout') {
             steps {
                 git branch: 'stagepfa',
@@ -38,7 +45,6 @@ pipeline {
                 }
             }
         }
-
 
         stage('Tests') {
             steps {
