@@ -82,15 +82,5 @@ pipeline {
                 }
             }
         }
-
-        stage('Docker Cleanup') {
-            steps {
-                script {
-                    echo "🗑️ Nettoyage des containers et images obsolètes..."
-                    sh 'docker-compose -f docker-compose.yml down --rmi all --volumes --remove-orphans'
-                    sh 'docker system prune -af'
-                }
-            }
-        }
     }
 }
