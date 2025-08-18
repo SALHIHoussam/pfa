@@ -84,5 +84,8 @@ with app.app_context():
     db.create_all()
 
 if __name__ == "__main__":
+    # Cette partie ne sera plus utilisée en production (Gunicorn prend le relais)
+    app.run(host="0.0.0.0", port=5000, debug=False)  # Mettez debug=False pour sécurité
     # debug=True uniquement en dev
-    app.run(host="0.0.0.0", port=5000, debug=True)
+    # app.run(host="0.0.0.0", port=5000, debug=True)
+
