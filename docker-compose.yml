@@ -10,7 +10,8 @@ services:
     volumes:
       - ./backend:/app
     environment:
-      - FLASK_ENV=development
+      - FLASK_ENV=production  # Changez ceci
+    restart: unless-stopped  # Ajoutez cette ligne
 
   frontend:
     build: ./frontend
@@ -20,3 +21,4 @@ services:
       - "3000:80"
     depends_on:
       - backend
+    restart: unless-stopped  # Ajoutez cette ligne
