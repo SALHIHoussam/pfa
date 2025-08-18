@@ -7,8 +7,7 @@ pipeline {
 
     environment {
         DOCKERHUB_CREDENTIALS = credentials('dockerhubtokenpfa')
-        DOCKER_IMAGE_BACKEND = "salhihoussam/backend"
-        DOCKER_IMAGE_FRONTEND = "salhihoussam/frontend"
+        COMPOSE_PROJECT_NAME = "pfa_project"
     }
 
     triggers {
@@ -16,7 +15,7 @@ pipeline {
     }
 
     stages {
-        stage('Clean') {
+        stage('Clean Workspace') {
             steps {
                 echo '🧹 Nettoyage du workspace...'
                 cleanWs()
@@ -31,27 +30,22 @@ pipeline {
             }
         }
 
-        stage('Build Frontend') {
+        stage('Build Frontend & Backend') {
             steps {
                 dir('frontend') {
                     sh 'CI=false npm install && CI=false npm run build'
                 }
-            }
-        }
-
-        stage('Build Backend') {
-            steps {
                 dir('backend') {
                     sh '''
-                    python3 -m venv venv
-                    . venv/bin/activate
-                    pip install -r requirements.txt
+                        python3 -m venv venv
+                        . venv/bin/activate
+                        pip install -r requirements.txt
                     '''
                 }
             }
         }
 
-        stage('Tests') {
+        stage('Run Tests') {
             steps {
                 dir('backend') {
                     sh 'source venv/bin/activate && pytest || true'
@@ -62,25 +56,39 @@ pipeline {
             }
         }
 
-        stage('Docker Build') {
+        stage('Docker Compose Build') {
             steps {
                 script {
-                    echo "🐳 Construction des images Docker..."
-                    sh "docker build -t ${DOCKER_IMAGE_BACKEND}:latest ./backend"
-                    sh "docker build -t ${DOCKER_IMAGE_FRONTEND}:latest ./frontend"
+                    echo "🐳 Construction des images Docker avec Compose..."
+                    sh 'docker-compose -f docker-compose.yml build'
                 }
             }
         }
 
-        stage('Docker Login & Push') {
+        stage('Docker Login') {
             steps {
                 script {
                     echo "🔑 Connexion à DockerHub..."
                     sh "echo ${DOCKERHUB_CREDENTIALS_PSW} | docker login -u ${DOCKERHUB_CREDENTIALS_USR} --password-stdin"
-                    
-                    echo "📤 Push des images vers DockerHub..."
-                    sh "docker push ${DOCKER_IMAGE_BACKEND}:latest"
-                    sh "docker push ${DOCKER_IMAGE_FRONTEND}:latest"
+                }
+            }
+        }
+
+        stage('Docker Compose Push') {
+            steps {
+                script {
+                    echo "📤 Push des images Docker via Compose..."
+                    sh 'docker-compose -f docker-compose.yml push'
+                }
+            }
+        }
+
+        stage('Docker Cleanup') {
+            steps {
+                script {
+                    echo "🗑️ Nettoyage des containers et images obsolètes..."
+                    sh 'docker-compose -f docker-compose.yml down --rmi all --volumes --remove-orphans'
+                    sh 'docker system prune -af'
                 }
             }
         }
