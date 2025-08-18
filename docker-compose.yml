@@ -1,3 +1,5 @@
+version: '3.8'
+
 services:
   backend:
     build: ./backend
@@ -9,8 +11,6 @@ services:
       - ./backend:/app
     environment:
       - FLASK_ENV=development
-    depends_on:
-      - db
 
   frontend:
     build: ./frontend
@@ -20,20 +20,3 @@ services:
       - "3000:80"
     depends_on:
       - backend
-
-  db:
-    image: mysql:8.0
-    container_name: mysql-db
-    restart: always
-    environment:
-      MYSQL_ROOT_PASSWORD: root
-      MYSQL_DATABASE: mydb
-      MYSQL_USER: user
-      MYSQL_PASSWORD: pass
-    ports:
-      - "3307:3306"
-    volumes:
-      - db_data:/var/lib/mysql
-
-volumes:
-  db_data:
