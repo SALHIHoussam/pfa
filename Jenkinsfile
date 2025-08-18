@@ -82,5 +82,23 @@ pipeline {
                 }
             }
         }
+
+        stage('Docker Compose Up') {
+            steps {
+                script {
+                    echo "🚀 Démarrage des containers Docker..."
+                    sh 'docker-compose -f docker-compose.yml up -d'
+                }
+            }
+        }
+
+        stage('Verify Containers') {
+            steps {
+                script {
+                    echo "🔍 Vérification des containers en cours d'exécution..."
+                    sh 'docker ps'
+                }
+            }
+        }
     }
 }
