@@ -60,7 +60,7 @@ pipeline {
             steps {
                 script {
                     echo "🐳 Construction des images Docker avec Compose..."
-                    sh 'docker-compose -f docker-compose.yml build'
+                    sh 'docker-compose -f docker-compose.yml build --no-cache'
                 }
             }
         }
