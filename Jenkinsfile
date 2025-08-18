@@ -6,7 +6,7 @@ pipeline {
     }
 
     environment {
-        DOCKERHUB_CREDENTIALS = credentials('dockertoken') // ID configuré dans Jenkins
+        DOCKERHUB_CREDENTIALS = credentials('dockerhubtokenpfa')
         DOCKER_IMAGE_BACKEND = "houssamsalhi/backend"
         DOCKER_IMAGE_FRONTEND = "houssamsalhi/frontend"
     }
