@@ -9,4 +9,4 @@ qrcode
 Flask==2.3.2
 flask_apscheduler==1.13.1
 Werkzeug
-
+reportlab
