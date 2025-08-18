@@ -11,3 +11,4 @@ flask_apscheduler==1.13.1
 Werkzeug
 reportlab
 PyPDF2
+cryptography
