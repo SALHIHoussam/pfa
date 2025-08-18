@@ -7,8 +7,8 @@ pipeline {
 
     environment {
         DOCKERHUB_CREDENTIALS = credentials('dockerhubtokenpfa')
-        DOCKER_IMAGE_BACKEND = "houssamsalhi/backend"
-        DOCKER_IMAGE_FRONTEND = "houssamsalhi/frontend"
+        DOCKER_IMAGE_BACKEND = "salhihoussam/backend"
+        DOCKER_IMAGE_FRONTEND = "salhihoussam/frontend"
     }
 
     triggers {
