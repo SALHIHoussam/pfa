@@ -10,8 +10,8 @@ services:
     volumes:
       - ./backend:/app
     environment:
-      - FLASK_ENV=production  # Changez ceci
-    restart: unless-stopped  # Ajoutez cette ligne
+      - FLASK_ENV=production
+    restart: unless-stopped
 
   frontend:
     build: ./frontend
@@ -21,4 +21,14 @@ services:
       - "3000:80"
     depends_on:
       - backend
-    restart: unless-stopped  # Ajoutez cette ligne
+    restart: unless-stopped
+
+  nexus:
+    image: sonatype/nexus3
+    container_name: nexus
+    ports:
+      - "8081:8081"  # Interface web
+      - "8082:8082"  # Docker registry
+    volumes:
+      - ./nexus-data:/nexus-data
+    restart: unless-stopped
