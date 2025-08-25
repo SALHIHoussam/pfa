@@ -87,12 +87,12 @@ pipeline {
 
         stage('Docker Login Nexus') {
             steps {
-                script {
-                    echo "🔑 Connexion à Nexus..."
-                    sh "echo ${NEXUS_CREDENTIALS_PSW} | docker login ${NEXUS_URL} -u ${NEXUS_CREDENTIALS_USR} --password-stdin"
+                withCredentials([usernamePassword(credentialsId: 'jenkins-nexus', usernameVariable: 'NEXUS_USER', passwordVariable: 'NEXUS_PSW')]) {
+                    sh 'echo $NEXUS_PSW | docker login 172.29.186.104:8081 -u $NEXUS_USER --password-stdin'
                 }
             }
         }
+
 
         stage('Docker Push Nexus') {
             steps {
