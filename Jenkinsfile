@@ -1,21 +1,15 @@
 pipeline {
     agent any
-
     tools {
         nodejs "node-18"
     }
-
     environment {
         DOCKERHUB_CREDENTIALS = credentials('dockerhubtokenpfa')
-        NEXUS_CREDENTIALS = credentials('jenkins-nexus')
-        NEXUS_URL = "172.29.186.104:8081"
         COMPOSE_PROJECT_NAME = "pfa_project"
     }
-
     triggers {
         githubPush()
     }
-
     stages {
         stage('Clean Workspace') {
             steps {
@@ -23,15 +17,11 @@ pipeline {
                 cleanWs()
             }
         }
-
         stage('Checkout') {
             steps {
-                git branch: 'stagepfa',
-                    url: 'https://github.com/SALHIHoussam/pfa.git',
-                    credentialsId: 'GITHUB_TOKEN_PFA'
+                git branch: 'stagepfa', url: 'https://github.com/SALHIHoussam/pfa.git', credentialsId: 'GITHUB_TOKEN_PFA'
             }
         }
-
         stage('Build Frontend & Backend') {
             steps {
                 dir('frontend') {
@@ -39,14 +29,13 @@ pipeline {
                 }
                 dir('backend') {
                     sh '''
-                        python3 -m venv venv
-                        . venv/bin/activate
-                        pip install -r requirements.txt
+                    python3 -m venv venv
+                    . venv/bin/activate
+                    pip install -r requirements.txt
                     '''
                 }
             }
         }
-
         stage('Run Tests') {
             steps {
                 dir('backend') {
@@ -57,7 +46,6 @@ pipeline {
                 }
             }
         }
-
         stage('Docker Compose Build') {
             steps {
                 script {
@@ -66,8 +54,7 @@ pipeline {
                 }
             }
         }
-
-        stage('Docker Login DockerHub') {
+        stage('Docker Login') {
             steps {
                 script {
                     echo "🔑 Connexion à DockerHub..."
@@ -75,39 +62,14 @@ pipeline {
                 }
             }
         }
-
-        stage('Docker Push DockerHub') {
+        stage('Docker Compose Push') {
             steps {
                 script {
-                    echo "📤 Push des images Docker vers DockerHub..."
+                    echo "📤 Push des images Docker via Compose..."
                     sh 'docker-compose -f docker-compose.yml push'
                 }
             }
         }
-
-        stage('Docker Login Nexus') {
-            steps {
-                withCredentials([usernamePassword(credentialsId: 'jenkins-nexus', usernameVariable: 'NEXUS_USER', passwordVariable: 'NEXUS_PSW')]) {
-                    sh 'echo $NEXUS_PSW | docker login 172.29.186.104:8081 -u $NEXUS_USER --password-stdin'
-                }
-            }
-        }
-
-
-        stage('Docker Push Nexus') {
-            steps {
-                script {
-                    echo "📦 Push des images Docker vers Nexus..."
-                    sh """
-                        docker tag salhihoussam/backend:latest ${NEXUS_URL}/pfa/backend:latest
-                        docker tag salhihoussam/frontend:latest ${NEXUS_URL}/pfa/frontend:latest
-                        docker push ${NEXUS_URL}/pfa/backend:latest
-                        docker push ${NEXUS_URL}/pfa/frontend:latest
-                    """
-                }
-            }
-        }
-
         stage('Docker Compose Up') {
             steps {
                 script {
@@ -116,7 +78,6 @@ pipeline {
                 }
             }
         }
-
         stage('Verify Containers') {
             steps {
                 script {
