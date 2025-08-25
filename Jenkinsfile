@@ -7,7 +7,7 @@ pipeline {
         DOCKERHUB_CREDENTIALS = credentials('dockerhubtokenpfa')
         NEXUS_DOCKER_CREDS = credentials('jenkins-nexus') // ID Jenkins contenant user/pass Nexus
         COMPOSE_PROJECT_NAME = "pfa_project"
-        NEXUS_URL = "http://172.29.186.104:8082" // Change selon ton réseau
+        NEXUS_URL = "http://172.29.186.104:5000" // Change selon ton réseau
     }
     triggers {
         githubPush()
@@ -63,13 +63,16 @@ pipeline {
             steps {
                 script {
                     echo "📦 Push des images Docker vers Nexus..."
-                    sh """
-                    echo ${NEXUS_DOCKER_CREDS_PSW} | docker login ${NEXUS_URL} -u ${NEXUS_DOCKER_CREDS_USR} --password-stdin
-                    docker tag pfa_frontend:latest ${NEXUS_URL}/docker-hosted/pfa_frontend:latest
-                    docker tag pfa_backend:latest ${NEXUS_URL}/docker-hosted/pfa_backend:latest
-                    docker push ${NEXUS_URL}/docker-hosted/pfa_frontend:latest
-                    docker push ${NEXUS_URL}/docker-hosted/pfa_backend:latest
+                    withCredentials([usernamePassword(credentialsId: 'jenkins-nexus', usernameVariable: 'NEXUS_USER', passwordVariable: 'NEXUS_PASS')]) {
+                    sh 
                     """
+                    echo $NEXUS_PASS | docker login $NEXUS_URL -u $NEXUS_USER --password-stdin
+                    docker tag salhihoussam/frontend:latest $NEXUS_URL/docker-hosted/pfa_frontend:latest
+                    docker tag salhihoussam/backend:latest $NEXUS_URL/docker-hosted/pfa_backend:latest
+                    docker push $NEXUS_URL/docker-hosted/pfa_frontend:latest
+                    docker push $NEXUS_URL/docker-hosted/pfa_backend:latest
+                    """
+                    }
                 }
             }
         }
