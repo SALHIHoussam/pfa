@@ -7,6 +7,8 @@ pipeline {
 
     environment {
         DOCKERHUB_CREDENTIALS = credentials('dockerhubtokenpfa')
+        NEXUS_CREDENTIALS = credentials('jenkins-nexus')
+        NEXUS_URL = "172.29.186.104:8082"
         COMPOSE_PROJECT_NAME = "pfa_project"
     }
 
@@ -65,7 +67,7 @@ pipeline {
             }
         }
 
-        stage('Docker Login') {
+        stage('Docker Login DockerHub') {
             steps {
                 script {
                     echo "🔑 Connexion à DockerHub..."
@@ -74,11 +76,34 @@ pipeline {
             }
         }
 
-        stage('Docker Compose Push') {
+        stage('Docker Push DockerHub') {
             steps {
                 script {
-                    echo "📤 Push des images Docker via Compose..."
+                    echo "📤 Push des images Docker vers DockerHub..."
                     sh 'docker-compose -f docker-compose.yml push'
+                }
+            }
+        }
+
+        stage('Docker Login Nexus') {
+            steps {
+                script {
+                    echo "🔑 Connexion à Nexus..."
+                    sh "echo ${NEXUS_CREDENTIALS_PSW} | docker login ${NEXUS_URL} -u ${NEXUS_CREDENTIALS_USR} --password-stdin"
+                }
+            }
+        }
+
+        stage('Docker Push Nexus') {
+            steps {
+                script {
+                    echo "📦 Push des images Docker vers Nexus..."
+                    sh """
+                        docker tag salhihoussam/backend:latest ${NEXUS_URL}/pfa/backend:latest
+                        docker tag salhihoussam/frontend:latest ${NEXUS_URL}/pfa/frontend:latest
+                        docker push ${NEXUS_URL}/pfa/backend:latest
+                        docker push ${NEXUS_URL}/pfa/frontend:latest
+                    """
                 }
             }
         }
