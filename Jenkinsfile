@@ -74,6 +74,10 @@ pipeline {
             steps {
                 script {
                     echo "🚀 Démarrage des containers Docker..."
+
+                    // Facultatif si volume Docker géré, nécessaire seulement si nexus-data local
+                    sh 'sudo chown -R 200:200 nexus-data || true'
+
                     sh 'docker-compose -f docker-compose.yml up -d'
                 }
             }
