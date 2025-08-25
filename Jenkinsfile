@@ -8,7 +8,7 @@ pipeline {
     environment {
         DOCKERHUB_CREDENTIALS = credentials('dockerhubtokenpfa')
         NEXUS_CREDENTIALS = credentials('jenkins-nexus')
-        NEXUS_URL = "172.29.186.104:8082"
+        NEXUS_URL = "172.29.186.104:8081"
         COMPOSE_PROJECT_NAME = "pfa_project"
     }
 
