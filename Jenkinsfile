@@ -62,16 +62,14 @@ pipeline {
         stage('Nexus Docker Push') {
             steps {
                 script {
-                    echo "📦 Push des images Docker vers Nexus..."
                     withCredentials([usernamePassword(credentialsId: 'jenkins-nexus', usernameVariable: 'NEXUS_USER', passwordVariable: 'NEXUS_PASS')]) {
-                    sh 
-                    """
-                    echo $NEXUS_PASS | docker login $NEXUS_URL -u $NEXUS_USER --password-stdin
-                    docker tag salhihoussam/frontend:latest $NEXUS_URL/docker-hosted/pfa_frontend:latest
-                    docker tag salhihoussam/backend:latest $NEXUS_URL/docker-hosted/pfa_backend:latest
-                    docker push $NEXUS_URL/docker-hosted/pfa_frontend:latest
-                    docker push $NEXUS_URL/docker-hosted/pfa_backend:latest
-                    """
+                        sh """
+                        echo $NEXUS_PASS | docker login http://172.29.186.104:5000 -u $NEXUS_USER --password-stdin
+                        docker tag pfa_frontend:latest 172.29.186.104:5000/pfa_frontend:latest
+                        docker tag pfa_backend:latest 172.29.186.104:5000/pfa_backend:latest
+                        docker push 172.29.186.104:5000/pfa_frontend:latest
+                        docker push 172.29.186.104:5000/pfa_backend:latest
+                        """
                     }
                 }
             }
