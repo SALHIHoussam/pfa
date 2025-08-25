@@ -3,7 +3,7 @@ version: '3.8'
 services:
   backend:
     build: ./backend
-    image: 172.29.186.104:5001/pfa/backend:latest  # Tag Nexus
+    image: salhihoussam/backend:latest
     container_name: flask-backend
     ports:
       - "5000:5000"
@@ -15,7 +15,7 @@ services:
 
   frontend:
     build: ./frontend
-    image: 172.29.186.104:5001/pfa/frontend:latest  # Tag Nexus
+    image: salhihoussam/frontend:latest
     container_name: react-frontend
     ports:
       - "3000:80"
@@ -27,8 +27,8 @@ services:
     image: sonatype/nexus3
     container_name: nexus
     ports:
-      - "8081:8081"  # Interface web
-      - "5001:5001"  # Docker registry
+      - "8081:8081" # Interface web
+      - "8082:8082" # Docker registry
     volumes:
       - nexus-data:/nexus-data
     restart: unless-stopped
