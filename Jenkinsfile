@@ -5,6 +5,8 @@ pipeline {
     }
     environment {
         DOCKERHUB_CREDENTIALS = credentials('dockerhubtokenpfa')
+        NEXUS_CREDENTIALS = credentials('jenkins-nexus')
+        NEXUS_URL = "172.29.186.104:5001"  // Port Docker registry
         COMPOSE_PROJECT_NAME = "pfa_project"
     }
     triggers {
@@ -17,11 +19,13 @@ pipeline {
                 cleanWs()
             }
         }
+
         stage('Checkout') {
             steps {
                 git branch: 'stagepfa', url: 'https://github.com/SALHIHoussam/pfa.git', credentialsId: 'GITHUB_TOKEN_PFA'
             }
         }
+
         stage('Build Frontend & Backend') {
             steps {
                 dir('frontend') {
@@ -36,6 +40,7 @@ pipeline {
                 }
             }
         }
+
         stage('Run Tests') {
             steps {
                 dir('backend') {
@@ -46,6 +51,7 @@ pipeline {
                 }
             }
         }
+
         stage('Docker Compose Build') {
             steps {
                 script {
@@ -54,7 +60,8 @@ pipeline {
                 }
             }
         }
-        stage('Docker Login') {
+
+        stage('Docker Login DockerHub') {
             steps {
                 script {
                     echo "🔑 Connexion à DockerHub..."
@@ -62,26 +69,49 @@ pipeline {
                 }
             }
         }
-        stage('Docker Compose Push') {
+
+        stage('Docker Push DockerHub') {
             steps {
                 script {
-                    echo "📤 Push des images Docker via Compose..."
+                    echo "📤 Push des images vers DockerHub..."
                     sh 'docker-compose -f docker-compose.yml push'
                 }
             }
         }
+
+        stage('Docker Login Nexus') {
+            steps {
+                script {
+                    echo "🔑 Connexion à Nexus Docker Registry..."
+                    sh "echo ${NEXUS_CREDENTIALS_PSW} | docker login -u ${NEXUS_CREDENTIALS_USR} ${NEXUS_URL} --password-stdin"
+                }
+            }
+        }
+
+        stage('Docker Push Nexus') {
+            steps {
+                script {
+                    echo "📤 Push des images vers Nexus..."
+                    sh """
+                        docker tag salhihoussam/frontend:latest ${NEXUS_URL}/pfa/frontend:latest
+                        docker tag salhihoussam/backend:latest ${NEXUS_URL}/pfa/backend:latest
+                        docker push ${NEXUS_URL}/pfa/frontend:latest
+                        docker push ${NEXUS_URL}/pfa/backend:latest
+                    """
+                }
+            }
+        }
+
         stage('Docker Compose Up') {
             steps {
                 script {
                     echo "🚀 Démarrage des containers Docker..."
-
-                    // Facultatif si volume Docker géré, nécessaire seulement si nexus-data local
                     sh 'sudo chown -R 200:200 nexus-data || true'
-
                     sh 'docker-compose -f docker-compose.yml up -d'
                 }
             }
         }
+
         stage('Verify Containers') {
             steps {
                 script {
