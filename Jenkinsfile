@@ -7,7 +7,7 @@ pipeline {
         DOCKERHUB_CREDENTIALS = credentials('dockerhubtokenpfa')
         NEXUS_DOCKER_CREDS = credentials('jenkins-nexus') // ID Jenkins contenant user/pass Nexus
         COMPOSE_PROJECT_NAME = "pfa_project"
-        NEXUS_URL = "https://172.29.186.104:8082" // Change selon ton réseau
+        NEXUS_URL = "http://172.29.186.104:8082" // Change selon ton réseau
     }
     triggers {
         githubPush()
