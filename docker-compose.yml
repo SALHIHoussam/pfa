@@ -2,16 +2,20 @@ version: '3.8'
 
 services:
   backend:
-    image: <NEXUS_IP>:5001/salhihoussam/backend:latest
+    build: ./backend
+    image: salhihoussam/backend:latest
     container_name: flask-backend
     ports:
       - "5000:5000"
+    volumes:
+      - ./backend:/app
     environment:
       - FLASK_ENV=production
     restart: unless-stopped
 
   frontend:
-    image: <NEXUS_IP>:5001/salhihoussam/frontend:latest
+    build: ./frontend
+    image: salhihoussam/frontend:latest
     container_name: react-frontend
     ports:
       - "3000:80"
@@ -23,8 +27,8 @@ services:
     image: sonatype/nexus3
     container_name: nexus
     ports:
-      - "8081:8081"
-      - "5001:5001"
+      - "8081:8081" # Interface web
+      - "5001:5001" # Docker registry
     volumes:
       - nexus-data:/nexus-data
     restart: unless-stopped
