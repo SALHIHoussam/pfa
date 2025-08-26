@@ -59,13 +59,13 @@ pipeline {
         stage('Docker Login DockerHub') {
             steps {
                 script {
-                    echo "🔑 Connexion à DockerHub..."
                     withCredentials([usernamePassword(credentialsId: 'dockerhubtokenpfa', usernameVariable: 'USR', passwordVariable: 'PWD')]) {
-                        sh 'echo $PWD | docker login -u $USR --password-stdin'
+                    sh 'echo $PWD | docker login -u $USR --password-stdin'
                     }
                 }
             }
         }
+
         stage('Deploy to Nexus') {
             steps {
                 script {
