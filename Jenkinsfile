@@ -5,8 +5,6 @@ pipeline {
     }
     environment {
         DOCKERHUB_CREDENTIALS = credentials('dockerhubtokenpfa')
-        NEXUS_CREDENTIALS = credentials('jenkins-nexus')
-        NEXUS_SERVICE = "nexus:5001" // Utilisation du container Nexus directement
         COMPOSE_PROJECT_NAME = "pfa_project"
     }
     triggers {
@@ -56,35 +54,19 @@ pipeline {
                 }
             }
         }
-        stage('Docker Login DockerHub') {
+        stage('Docker Login') {
             steps {
                 script {
-                    withCredentials([usernamePassword(credentialsId: 'dockerhubtokenpfa', usernameVariable: 'USR', passwordVariable: 'PWD')]) {
-                    sh 'echo $PWD | docker login -u $USR --password-stdin'
-                    }
+                    echo "🔑 Connexion à DockerHub..."
+                    sh "echo ${DOCKERHUB_CREDENTIALS_PSW} | docker login -u ${DOCKERHUB_CREDENTIALS_USR} --password-stdin"
                 }
             }
         }
-
-        stage('Deploy to Nexus') {
+        stage('Docker Compose Push') {
             steps {
                 script {
-                    echo "📦 Tag & push des images vers Nexus via le container..."
-                    sh "docker tag salhihoussam/backend:latest ${NEXUS_SERVICE}/salhihoussam/backend:latest"
-                    sh "docker tag salhihoussam/frontend:latest ${NEXUS_SERVICE}/salhihoussam/frontend:latest"
-                    sh "docker push ${NEXUS_SERVICE}/salhihoussam/backend:latest"
-                    sh "docker push ${NEXUS_SERVICE}/salhihoussam/frontend:latest"
-                }
-            }
-        }
-        stage('Upload Artifacts to Nexus') {
-            steps {
-                script {
-                    echo "⬆️ Upload des artifacts vers Nexus raw repository..."
-                    withCredentials([usernamePassword(credentialsId: 'jenkins-nexus', usernameVariable: 'USR', passwordVariable: 'PWD')]) {
-                        sh "curl -u $USR:$PWD --upload-file backend/backend.tar.gz http://nexus:8081/repository/pfa-backend-artifacts/backend.tar.gz"
-                        sh "curl -u $USR:$PWD --upload-file frontend/build.zip http://nexus:8081/repository/pfa-frontend-artifacts/build.zip"
-                    }
+                    echo "📤 Push des images Docker via Compose..."
+                    sh 'docker-compose -f docker-compose.yml push'
                 }
             }
         }
@@ -92,6 +74,10 @@ pipeline {
             steps {
                 script {
                     echo "🚀 Démarrage des containers Docker..."
+
+                    // Facultatif si volume Docker géré, nécessaire seulement si nexus-data local
+                    sh 'sudo chown -R 200:200 nexus-data || true'
+
                     sh 'docker-compose -f docker-compose.yml up -d'
                 }
             }
