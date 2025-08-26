@@ -19,7 +19,7 @@ pipeline {
         }
         stage('Checkout') {
             steps {
-                git branch: 'stagepfa', url: 'https://github.com/SALHIHoussam/pfa.git', credentialsId: 'GITHUB_TOKEN_PFA'
+                git branch: 'stagepfa', url: 'https://github.com/SALHIHoussam/pfa.git', credentialsId: 'github-token'
             }
         }
         stage('Build Frontend & Backend') {
