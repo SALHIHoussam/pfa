@@ -5,7 +5,7 @@ pipeline {
     }
     environment {
         DOCKERHUB_CREDENTIALS = credentials('dockerhubtokenpfa')
-        NEXUS_CREDENTIALS = credentials('jenkins')
+        NEXUS_CREDENTIALS = credentials('jenkins')  // Nexus username/password
         NEXUS_REPO_URL = "http://localhost:8081/repository/pfa-artifacts"
         COMPOSE_PROJECT_NAME = "pfa_project"
     }
@@ -19,11 +19,13 @@ pipeline {
                 cleanWs()
             }
         }
+
         stage('Checkout') {
             steps {
                 git branch: 'stagepfa', url: 'https://github.com/SALHIHoussam/pfa.git', credentialsId: 'github-token'
             }
         }
+
         stage('Build Frontend & Backend') {
             steps {
                 dir('frontend') {
@@ -31,13 +33,15 @@ pipeline {
                 }
                 dir('backend') {
                     sh '''
-                    python3 -m venv venv
-                    . venv/bin/activate
-                    pip install -r requirements.txt
+                        python3 -m venv venv
+                        . venv/bin/activate
+                        pip install --upgrade pip
+                        pip install -r requirements.txt
                     '''
                 }
             }
         }
+
         stage('Run Tests') {
             steps {
                 dir('backend') {
@@ -48,6 +52,7 @@ pipeline {
                 }
             }
         }
+
         stage('Package Artifacts') {
             steps {
                 script {
@@ -57,6 +62,7 @@ pipeline {
                 }
             }
         }
+
         stage('Upload Artifacts to Nexus') {
             steps {
                 script {
@@ -70,6 +76,7 @@ pipeline {
                 }
             }
         }
+
         stage('Docker Compose Build') {
             steps {
                 script {
@@ -78,6 +85,7 @@ pipeline {
                 }
             }
         }
+
         stage('Docker Login') {
             steps {
                 script {
@@ -86,6 +94,7 @@ pipeline {
                 }
             }
         }
+
         stage('Docker Compose Push') {
             steps {
                 script {
@@ -94,6 +103,7 @@ pipeline {
                 }
             }
         }
+
         stage('Docker Compose Up') {
             steps {
                 script {
@@ -103,6 +113,7 @@ pipeline {
                 }
             }
         }
+
         stage('Verify Containers') {
             steps {
                 script {
@@ -110,6 +121,15 @@ pipeline {
                     sh 'docker ps'
                 }
             }
+        }
+    }
+
+    post {
+        always {
+            echo "✅ Pipeline terminé."
+        }
+        failure {
+            echo "❌ Pipeline échoué !"
         }
     }
 }
