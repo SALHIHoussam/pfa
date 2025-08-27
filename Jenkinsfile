@@ -81,18 +81,18 @@ pipeline {
             steps {
                 script {
                     echo "📦 Création des archives backend et frontend..."
-
+        
                     // Backend
                     sh 'tar -czf backend_src.tar.gz -C backend .'
-
-                    // Frontend - vérification que le build existe
+        
+                    // Frontend complet (sources)
                     sh '''
-                        if [ ! -d "frontend/build" ] || [ -z "$(ls -A frontend/build)" ]; then
-                            echo "❌ Build React manquant ou vide ! Veuillez vérifier npm run build."
+                        if [ ! -d "frontend/src" ]; then
+                            echo "❌ Dossier src manquant dans frontend !"
                             exit 1
                         fi
-                        tar -czf frontend_build.tar.gz -C frontend/build .
-                        echo "✅ Build React archivé avec succès."
+                        tar -czf frontend_src.tar.gz -C frontend --exclude=node_modules --exclude=build .
+                        echo "✅ Frontend archivé avec succès."
                     '''
                 }
             }
