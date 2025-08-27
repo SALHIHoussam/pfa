@@ -5,7 +5,7 @@ pipeline {
     }
     environment {
         DOCKERHUB_CREDENTIALS = credentials('dockerhubtokenpfa')
-        NEXUS_CREDENTIALS = credentials('nexus-credentials') // à configurer dans Jenkins
+        NEXUS_CREDENTIALS = credentials('jenkins')
         NEXUS_REPO_URL = "http://localhost:8081/repository/pfa-artifacts"
         COMPOSE_PROJECT_NAME = "pfa_project"
     }
