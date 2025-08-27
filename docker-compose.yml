@@ -34,4 +34,4 @@ services:
     restart: unless-stopped
 
 volumes:
-  nexus-data:
+  pfa_project_nexus-data:
