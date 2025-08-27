@@ -61,15 +61,16 @@ pipeline {
 
                     echo "⏳ Attente que Nexus soit prêt (jusqu’à 10 minutes)..."
                     sh '''
-                        for i in {1..120}; do
-                            STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8081/service/rest/v1/status || true)
+                        for i in {1..60}; do
+                            STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:8081/service/rest/v1/status || echo 000)
                             if [ "$STATUS" = "200" ]; then
                                 echo "✅ Nexus est prêt !"
                                 exit 0
                             fi
-                            echo "⏳ Nexus pas encore prêt (status=$STATUS), tentative $i/120..."
+                            echo "⏳ Nexus pas encore prêt (status=$STATUS), tentative $i/60..."
                             sleep 5
                         done
+
                         echo "❌ Nexus ne répond pas après 10 minutes."
                         exit 1
                     '''
