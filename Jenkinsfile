@@ -44,25 +44,22 @@ pipeline {
 
         stage('Docker Compose Up (Nexus only)') {
             steps {
-                script {
-                    // Skip si Nexus déjà UP
-                    sh '''
-                        if [ "$(docker ps -q -f name=nexus)" == "" ]; then
-                            docker-compose -f docker-compose.yml up -d nexus
-                        else
-                            echo "Nexus déjà actif"
+                sh '''
+                    if [ "$(docker ps -q -f name=nexus)" == "" ]; then
+                        docker-compose -f docker-compose.yml up -d nexus
+                    else
+                        echo "Nexus déjà actif"
+                    fi
+                    COUNT=0
+                    until [ "$(curl -s -o /dev/null -w "%{http_code}" http://172.29.186.104:8081/service/rest/v1/status)" = "200" ]; do
+                        COUNT=$((COUNT+1))
+                        if [ $COUNT -ge 60 ]; then
+                            echo "❌ Nexus ne répond pas après 5 minutes."
+                            exit 1
                         fi
-                        COUNT=0
-                        until [ "$(curl -s -o /dev/null -w "%{http_code}" http://172.29.186.104:8081/service/rest/v1/status)" = "200" ]; do
-                            COUNT=$((COUNT+1))
-                            if [ $COUNT -ge 60 ]; then
-                                echo "❌ Nexus ne répond pas après 5 minutes."
-                                exit 1
-                            fi
-                            sleep 5
-                        done
-                    '''
-                }
+                        sleep 5
+                    done
+                '''
             }
         }
 
@@ -81,8 +78,8 @@ pipeline {
             steps {
                 withCredentials([usernamePassword(credentialsId: 'jenkins', usernameVariable: 'USR', passwordVariable: 'PWD')]) {
                     sh """
-                        curl -u $USR:$PWD --upload-file backend_src.tar.gz ${NEXUS_RAW_URL}/backend_src.tar.gz
-                        curl -u $USR:$PWD --upload-file frontend_build.tar.gz ${NEXUS_RAW_URL}/frontend_build.tar.gz
+                        curl -u \$USR:\$PWD --upload-file backend_src.tar.gz ${NEXUS_RAW_URL}/backend_src.tar.gz
+                        curl -u \$USR:\$PWD --upload-file frontend_build.tar.gz ${NEXUS_RAW_URL}/frontend_build.tar.gz
                     """
                 }
             }
@@ -90,19 +87,19 @@ pipeline {
 
         stage('Docker Compose Build') { steps { sh 'docker-compose -f docker-compose.yml build --no-cache' } }
 
-        stage('Docker Login Nexus') {
+        stage('Docker Login Nexus (HTTP)') {
             steps {
                 withCredentials([usernamePassword(credentialsId: 'jenkins', usernameVariable: 'USR', passwordVariable: 'PWD')]) {
-                    sh "docker login ${NEXUS_DOCKER_REGISTRY} -u $USR -p $PWD"
+                    sh "echo \$PWD | docker login ${NEXUS_DOCKER_REGISTRY} --username \$USR --password-stdin --tls-verify=false"
                 }
             }
         }
 
-        stage('Docker Push Nexus') {
+        stage('Docker Push Nexus (HTTP)') {
             steps {
                 sh '''
-                    docker push 172.29.186.104:5001/backend:latest
-                    docker push 172.29.186.104:5001/frontend:latest
+                    docker push 172.29.186.104:5001/backend:latest --tls-verify=false
+                    docker push 172.29.186.104:5001/frontend:latest --tls-verify=false
                 '''
             }
         }
@@ -110,7 +107,7 @@ pipeline {
         stage('Docker Login DockerHub') {
             steps {
                 withCredentials([usernamePassword(credentialsId: 'dockerhubtokenpfa', usernameVariable: 'USR', passwordVariable: 'PWD')]) {
-                    sh "docker login -u $USR -p $PWD"
+                    sh "echo \$PWD | docker login -u \$USR --password-stdin"
                 }
             }
         }
