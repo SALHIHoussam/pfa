@@ -3,7 +3,7 @@ version: '3.8'
 services:
   backend:
     build: ./backend
-    image: 172.29.186.104:5001/backend:latest
+    image: salhihoussam/backend:latest
     container_name: flask-backend
     ports:
       - "5000:5000"
@@ -15,7 +15,7 @@ services:
 
   frontend:
     build: ./frontend
-    image: 172.29.186.104:5001/frontend:latest
+    image: salhihoussam/frontend:latest
     container_name: react-frontend
     ports:
       - "3000:80"
