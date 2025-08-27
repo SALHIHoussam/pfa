@@ -59,24 +59,24 @@ pipeline {
                     echo "🚀 Démarrage de Nexus uniquement..."
                     sh 'docker-compose -f docker-compose.yml up -d nexus'
 
-                    echo "⏳ Attente que Nexus soit prêt (jusqu’à 10 minutes)..."
+                    echo "⏳ Attente que Nexus soit prêt..."
                     sh '''
-                        for i in {1..60}; do
-                            STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:8081/service/rest/v1/status || echo 000)
-                            if [ "$STATUS" = "200" ]; then
-                                echo "✅ Nexus est prêt !"
-                                exit 0
-                            fi
-                            echo "⏳ Nexus pas encore prêt (status=$STATUS), tentative $i/60..."
-                            sleep 5
-                        done
-
-                        echo "❌ Nexus ne répond pas après 10 minutes."
-                        exit 1
+                    COUNT=0
+                    until [ "$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:8081/service/rest/v1/status)" = "200" ]; do
+                        COUNT=$((COUNT+1))
+                        if [ $COUNT -ge 60 ]; then
+                            echo "❌ Nexus ne répond pas après 5 minutes."
+                            exit 1
+                        fi
+                        echo "⏳ Nexus pas encore prêt, tentative $COUNT/60..."
+                        sleep 5
+                    done
+                    echo "✅ Nexus est prêt !"
                     '''
                 }
             }
-        }    
+        }
+
 
         stage('Package Artifacts') {
             steps {
