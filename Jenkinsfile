@@ -81,18 +81,12 @@ pipeline {
             steps {
                 script {
                     echo "📦 Création des archives backend et frontend..."
-        
-                    // Backend
-                    sh 'tar -czf backend_src.tar.gz -C backend .'
-        
-                    // Frontend complet (sources)
                     sh '''
-                        if [ ! -d "frontend/src" ]; then
-                            echo "❌ Dossier src manquant dans frontend !"
-                            exit 1
-                        fi
-                        tar -czf frontend_src.tar.gz -C frontend --exclude=node_modules --exclude=build .
-                        echo "✅ Frontend archivé avec succès."
+                    tar -czf backend_src.tar.gz -C backend .
+                    tar -czf frontend_build.tar.gz -C frontend/build .
+                    
+                    [ -f backend_src.tar.gz ] || { echo "❌ backend_src.tar.gz missing"; exit 1; }
+                    [ -f frontend_build.tar.gz ] || { echo "❌ frontend_build.tar.gz missing"; exit 1; }
                     '''
                 }
             }
