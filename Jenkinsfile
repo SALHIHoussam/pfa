@@ -1,19 +1,24 @@
 pipeline {
     agent any
-    tools { nodejs "node-18" }
-
+    tools {
+        nodejs "node-18"
+    }
     environment {
         DOCKERHUB_CREDENTIALS = credentials('dockerhubtokenpfa')
-        NEXUS_CREDENTIALS = credentials('jenkins')
-        NEXUS_RAW_URL = "http://172.29.186.104:8081/repository/pfa-artifacts"
-        NEXUS_DOCKER_REGISTRY = "172.29.186.104:5001"
+        NEXUS_CREDENTIALS = credentials('jenkins') // Nexus username/password
+        NEXUS_REPO_URL = "http://127.0.0.1:8081/repository/pfa-artifacts"
         COMPOSE_PROJECT_NAME = "pfa_project"
     }
-
-    triggers { githubPush() }
-
+    triggers {
+        githubPush()
+    }
     stages {
-        stage('Clean Workspace') { steps { cleanWs() } }
+        stage('Clean Workspace') {
+            steps {
+                echo '🧹 Nettoyage du workspace...'
+                cleanWs()
+            }
+        }
 
         stage('Checkout') {
             steps {
@@ -23,7 +28,9 @@ pipeline {
 
         stage('Build Frontend & Backend') {
             steps {
-                dir('frontend') { sh 'CI=false npm install && CI=false npm run build' }
+                dir('frontend') {
+                    sh 'CI=false npm install && CI=false npm run build'
+                }
                 dir('backend') {
                     sh '''
                         python3 -m venv venv
@@ -37,98 +44,117 @@ pipeline {
 
         stage('Run Tests') {
             steps {
-                dir('backend') { sh 'source venv/bin/activate && pytest || true' }
-                dir('frontend') { sh 'CI=false npm test -- --watchAll=false || true' }
+                dir('backend') {
+                    sh 'source venv/bin/activate && pytest || true'
+                }
+                dir('frontend') {
+                    sh 'CI=false npm test -- --watchAll=false || true'
+                }
             }
         }
 
         stage('Docker Compose Up (Nexus only)') {
             steps {
-                sh '''
-                    if [ "$(docker ps -q -f name=nexus)" == "" ]; then
-                        docker-compose -f docker-compose.yml up -d nexus
-                    else
-                        echo "Nexus déjà actif"
-                    fi
-                    COUNT=0
-                    until [ "$(curl -s -o /dev/null -w "%{http_code}" http://172.29.186.104:8081/service/rest/v1/status)" = "200" ]; do
-                        COUNT=$((COUNT+1))
-                        if [ $COUNT -ge 60 ]; then
-                            echo "❌ Nexus ne répond pas après 5 minutes."
-                            exit 1
-                        fi
-                        sleep 5
-                    done
-                '''
+                script {
+                    echo "🚀 Démarrage de Nexus uniquement..."
+                    sh 'docker-compose -f docker-compose.yml up -d nexus'
+
+                    echo "⏳ Attente que Nexus soit prêt..."
+                    sh '''
+                        COUNT=0
+                        until [ "$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:8081/service/rest/v1/status)" = "200" ]; do
+                            COUNT=$((COUNT+1))
+                            if [ $COUNT -ge 60 ]; then
+                                echo "❌ Nexus ne répond pas après 5 minutes."
+                                exit 1
+                            fi
+                            echo "⏳ Nexus pas encore prêt, tentative $COUNT/60..."
+                            sleep 5
+                        done
+                        echo "✅ Nexus est prêt !"
+                    '''
+                }
             }
         }
 
         stage('Package Artifacts') {
             steps {
-                sh '''
+                script {
+                    echo "📦 Création des archives backend et frontend..."
+                    sh '''
                     tar -czf backend_src.tar.gz -C backend .
                     tar -czf frontend_build.tar.gz -C frontend/build .
+                    
                     [ -f backend_src.tar.gz ] || { echo "❌ backend_src.tar.gz missing"; exit 1; }
                     [ -f frontend_build.tar.gz ] || { echo "❌ frontend_build.tar.gz missing"; exit 1; }
-                '''
+                    '''
+                }
             }
         }
 
-        stage('Upload Artifacts to Nexus Raw') {
+        stage('Upload Artifacts to Nexus') {
             steps {
                 withCredentials([usernamePassword(credentialsId: 'jenkins', usernameVariable: 'USR', passwordVariable: 'PWD')]) {
                     sh """
-                        curl -u \$USR:\$PWD --upload-file backend_src.tar.gz ${NEXUS_RAW_URL}/backend_src.tar.gz
-                        curl -u \$USR:\$PWD --upload-file frontend_build.tar.gz ${NEXUS_RAW_URL}/frontend_build.tar.gz
+                        curl -u $USR:$PWD --upload-file backend_src.tar.gz ${NEXUS_REPO_URL}/backend_src.tar.gz
+                        curl -u $USR:$PWD --upload-file frontend_build.tar.gz ${NEXUS_REPO_URL}/frontend_build.tar.gz
                     """
                 }
             }
         }
 
-        stage('Docker Compose Build') { steps { sh 'docker-compose -f docker-compose.yml build --no-cache' } }
-
-        stage('Docker Login Nexus (HTTP)') {
+        stage('Docker Compose Build') {
             steps {
-                withCredentials([usernamePassword(credentialsId: 'jenkins', usernameVariable: 'USR', passwordVariable: 'PWD')]) {
-                    sh "echo \$PWD | docker login ${NEXUS_DOCKER_REGISTRY} --username \$USR --password-stdin --tls-verify=false"
+                script {
+                    echo "🐳 Construction des images Docker avec Compose..."
+                    sh 'docker-compose -f docker-compose.yml build --no-cache'
                 }
             }
         }
 
-        stage('Docker Push Nexus (HTTP)') {
+        stage('Docker Login') {
             steps {
-                sh '''
-                    docker push 172.29.186.104:5001/backend:latest --tls-verify=false
-                    docker push 172.29.186.104:5001/frontend:latest --tls-verify=false
-                '''
-            }
-        }
-
-        stage('Docker Login DockerHub') {
-            steps {
-                withCredentials([usernamePassword(credentialsId: 'dockerhubtokenpfa', usernameVariable: 'USR', passwordVariable: 'PWD')]) {
-                    sh "echo \$PWD | docker login -u \$USR --password-stdin"
+                script {
+                    echo "🔑 Connexion à DockerHub..."
+                    sh "echo ${DOCKERHUB_CREDENTIALS_PSW} | docker login -u ${DOCKERHUB_CREDENTIALS_USR} --password-stdin"
                 }
             }
         }
 
-        stage('Docker Push DockerHub') {
+        stage('Docker Compose Push') {
             steps {
-                sh '''
-                    docker tag 172.29.186.104:5001/backend:latest salhihoussam/backend:latest
-                    docker tag 172.29.186.104:5001/frontend:latest salhihoussam/frontend:latest
-                    docker push salhihoussam/backend:latest
-                    docker push salhihoussam/frontend:latest
-                '''
+                script {
+                    echo "📤 Push des images Docker via Compose..."
+                    sh 'docker-compose -f docker-compose.yml push'
+                }
             }
         }
 
-        stage('Docker Compose Up (All Services)') { steps { sh 'docker-compose -f docker-compose.yml up -d' } }
-        stage('Verify Containers') { steps { sh 'docker ps' } }
+        stage('Docker Compose Up (All Services)') {
+            steps {
+                script {
+                    echo "🚀 Démarrage complet des containers..."
+                    sh 'docker-compose -f docker-compose.yml up -d'
+                }
+            }
+        }
+
+        stage('Verify Containers') {
+            steps {
+                script {
+                    echo "🔍 Vérification des containers en cours d\'exécution..."
+                    sh 'docker ps'
+                }
+            }
+        }
     }
 
     post {
-        always { echo "✅ Pipeline terminé." }
-        failure { echo "❌ Pipeline échoué !" }
+        always {
+            echo "✅ Pipeline terminé."
+        }
+        failure {
+            echo "❌ Pipeline échoué !"
+        }
     }
 }
