@@ -6,7 +6,7 @@ pipeline {
     environment {
         DOCKERHUB_CREDENTIALS = credentials('dockerhubtokenpfa')
         NEXUS_CREDENTIALS = credentials('jenkins') // Nexus username/password
-        NEXUS_REPO_URL = "http://localhost:8081/repository/pfa-artifacts"
+        NEXUS_REPO_URL = "http://127.0.0.1:8081/repository/pfa-artifacts"
         COMPOSE_PROJECT_NAME = "pfa_project"
     }
     triggers {
@@ -61,29 +61,39 @@ pipeline {
 
                     echo "⏳ Attente que Nexus soit prêt..."
                     sh '''
-                    COUNT=0
-                    until [ "$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:8081/service/rest/v1/status)" = "200" ]; do
-                        COUNT=$((COUNT+1))
-                        if [ $COUNT -ge 60 ]; then
-                            echo "❌ Nexus ne répond pas après 5 minutes."
-                            exit 1
-                        fi
-                        echo "⏳ Nexus pas encore prêt, tentative $COUNT/60..."
-                        sleep 5
-                    done
-                    echo "✅ Nexus est prêt !"
+                        COUNT=0
+                        until [ "$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:8081/service/rest/v1/status)" = "200" ]; do
+                            COUNT=$((COUNT+1))
+                            if [ $COUNT -ge 60 ]; then
+                                echo "❌ Nexus ne répond pas après 5 minutes."
+                                exit 1
+                            fi
+                            echo "⏳ Nexus pas encore prêt, tentative $COUNT/60..."
+                            sleep 5
+                        done
+                        echo "✅ Nexus est prêt !"
                     '''
                 }
             }
         }
 
-
         stage('Package Artifacts') {
             steps {
                 script {
                     echo "📦 Création des archives backend et frontend..."
+
+                    // Backend
                     sh 'tar -czf backend_src.tar.gz -C backend .'
-                    sh 'tar -czf frontend_build.tar.gz -C frontend/build .'
+
+                    // Frontend - vérification que le build existe
+                    sh '''
+                        if [ ! -d "frontend/build" ] || [ -z "$(ls -A frontend/build)" ]; then
+                            echo "❌ Build React manquant ou vide ! Veuillez vérifier npm run build."
+                            exit 1
+                        fi
+                        tar -czf frontend_build.tar.gz -C frontend/build .
+                        echo "✅ Build React archivé avec succès."
+                    '''
                 }
             }
         }
