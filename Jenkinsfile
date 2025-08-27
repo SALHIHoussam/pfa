@@ -5,7 +5,7 @@ pipeline {
     }
     environment {
         DOCKERHUB_CREDENTIALS = credentials('dockerhubtokenpfa')
-        NEXUS_CREDENTIALS = credentials('jenkins')
+        NEXUS_CREDENTIALS = credentials('jenkins') // Nexus username/password
         NEXUS_REPO_URL = "http://localhost:8081/repository/pfa-artifacts"
         COMPOSE_PROJECT_NAME = "pfa_project"
     }
@@ -61,15 +61,16 @@ pipeline {
 
                     echo "⏳ Attente que Nexus soit prêt..."
                     sh '''
-                        for i in {1..30}; do
-                            if curl -s http://localhost:8081 > /dev/null; then
+                        for i in {1..60}; do
+                            STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8081/service/rest/v1/status || true)
+                            if [ "$STATUS" = "200" ]; then
                                 echo "✅ Nexus est prêt !"
                                 exit 0
                             fi
-                            echo "⏳ Nexus n’est pas encore prêt, attente..."
+                            echo "⏳ Nexus pas encore prêt (status=$STATUS), nouvelle tentative..."
                             sleep 5
                         done
-                        echo "❌ Nexus ne répond pas après 150s"
+                        echo "❌ Nexus ne répond pas après 5 minutes."
                         exit 1
                     '''
                 }
@@ -136,7 +137,7 @@ pipeline {
         stage('Verify Containers') {
             steps {
                 script {
-                    echo "🔍 Vérification des containers en cours d'exécution..."
+                    echo "🔍 Vérification des containers en cours d\'exécution..."
                     sh 'docker ps'
                 }
             }
