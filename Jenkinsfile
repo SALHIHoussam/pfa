@@ -1,8 +1,7 @@
 pipeline {
     agent any
-    tools {
-        nodejs "node-18"
-    }
+    tools { nodejs "node-18" }
+
     environment {
         DOCKERHUB_CREDENTIALS = credentials('dockerhubtokenpfa')
         NEXUS_CREDENTIALS = credentials('jenkins')
@@ -10,13 +9,11 @@ pipeline {
         NEXUS_DOCKER_REGISTRY = "172.29.186.104:5001"
         COMPOSE_PROJECT_NAME = "pfa_project"
     }
-    triggers {
-        githubPush()
-    }
+
+    triggers { githubPush() }
+
     stages {
-        stage('Clean Workspace') {
-            steps { cleanWs() }
-        }
+        stage('Clean Workspace') { steps { cleanWs() } }
 
         stage('Checkout') {
             steps {
@@ -47,18 +44,25 @@ pipeline {
 
         stage('Docker Compose Up (Nexus only)') {
             steps {
-                sh 'docker-compose -f docker-compose.yml up -d nexus'
-                sh '''
-                    COUNT=0
-                    until [ "$(curl -s -o /dev/null -w "%{http_code}" http://172.29.186.104:8081/service/rest/v1/status)" = "200" ]; do
-                        COUNT=$((COUNT+1))
-                        if [ $COUNT -ge 60 ]; then
-                            echo "❌ Nexus ne répond pas après 5 minutes."
-                            exit 1
+                script {
+                    // Skip si Nexus déjà UP
+                    sh '''
+                        if [ "$(docker ps -q -f name=nexus)" == "" ]; then
+                            docker-compose -f docker-compose.yml up -d nexus
+                        else
+                            echo "Nexus déjà actif"
                         fi
-                        sleep 5
-                    done
-                '''
+                        COUNT=0
+                        until [ "$(curl -s -o /dev/null -w "%{http_code}" http://172.29.186.104:8081/service/rest/v1/status)" = "200" ]; do
+                            COUNT=$((COUNT+1))
+                            if [ $COUNT -ge 60 ]; then
+                                echo "❌ Nexus ne répond pas après 5 minutes."
+                                exit 1
+                            fi
+                            sleep 5
+                        done
+                    '''
+                }
             }
         }
 
@@ -84,9 +88,7 @@ pipeline {
             }
         }
 
-        stage('Docker Compose Build') {
-            steps { sh 'docker-compose -f docker-compose.yml build --no-cache' }
-        }
+        stage('Docker Compose Build') { steps { sh 'docker-compose -f docker-compose.yml build --no-cache' } }
 
         stage('Docker Login Nexus') {
             steps {
@@ -124,13 +126,8 @@ pipeline {
             }
         }
 
-        stage('Docker Compose Up (All Services)') {
-            steps { sh 'docker-compose -f docker-compose.yml up -d' }
-        }
-
-        stage('Verify Containers') {
-            steps { sh 'docker ps' }
-        }
+        stage('Docker Compose Up (All Services)') { steps { sh 'docker-compose -f docker-compose.yml up -d' } }
+        stage('Verify Containers') { steps { sh 'docker ps' } }
     }
 
     post {
