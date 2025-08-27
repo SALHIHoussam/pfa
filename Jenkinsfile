@@ -5,6 +5,8 @@ pipeline {
     }
     environment {
         DOCKERHUB_CREDENTIALS = credentials('dockerhubtokenpfa')
+        NEXUS_CREDENTIALS = credentials('nexus-credentials') // à configurer dans Jenkins
+        NEXUS_REPO_URL = "http://localhost:8081/repository/pfa-artifacts"
         COMPOSE_PROJECT_NAME = "pfa_project"
     }
     triggers {
@@ -46,6 +48,28 @@ pipeline {
                 }
             }
         }
+        stage('Package Artifacts') {
+            steps {
+                script {
+                    echo "📦 Création des archives backend et frontend..."
+                    sh 'tar -czf backend_src.tar.gz -C backend .'
+                    sh 'tar -czf frontend_build.tar.gz -C frontend/build .'
+                }
+            }
+        }
+        stage('Upload Artifacts to Nexus') {
+            steps {
+                script {
+                    echo "⬆️ Upload des artefacts vers Nexus..."
+                    sh """
+                        curl -v -u ${NEXUS_CREDENTIALS_USR}:${NEXUS_CREDENTIALS_PSW} \
+                        --upload-file backend_src.tar.gz ${NEXUS_REPO_URL}/backend_src.tar.gz
+                        curl -v -u ${NEXUS_CREDENTIALS_USR}:${NEXUS_CREDENTIALS_PSW} \
+                        --upload-file frontend_build.tar.gz ${NEXUS_REPO_URL}/frontend_build.tar.gz
+                    """
+                }
+            }
+        }
         stage('Docker Compose Build') {
             steps {
                 script {
@@ -54,7 +78,6 @@ pipeline {
                 }
             }
         }
-        
         stage('Docker Login') {
             steps {
                 script {
@@ -63,7 +86,6 @@ pipeline {
                 }
             }
         }
-        
         stage('Docker Compose Push') {
             steps {
                 script {
@@ -76,10 +98,7 @@ pipeline {
             steps {
                 script {
                     echo "🚀 Démarrage des containers Docker..."
-
-                    // Facultatif si volume Docker géré, nécessaire seulement si nexus-data local
                     sh 'sudo chown -R 200:200 nexus-data || true'
-
                     sh 'docker-compose -f docker-compose.yml up -d'
                 }
             }
