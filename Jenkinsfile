@@ -20,19 +20,6 @@ pipeline {
             }
         }
 
-        stage('Clean Docker Volumes') {
-            steps {
-                script {
-                    echo "🧹 Suppression des volumes anonymes..."
-                    sh '''
-                      for v in $(docker volume ls -q --filter "dangling=true"); do
-                        docker volume rm -f $v || true
-                      done
-                    '''
-                }
-            }
-        }
-
         stage('Checkout') {
             steps {
                 git branch: 'stagepfa', url: 'https://github.com/SALHIHoussam/pfa.git', credentialsId: 'github-token'
