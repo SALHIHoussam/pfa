@@ -149,20 +149,19 @@ pipeline {
             }
         }
     }
+    
     post {
-    always {
-        echo "🧹 Nettoyage final des volumes anonymes sauf ceux qu'on garde..."
-        sh '''
-          for v in $(docker volume ls -q --filter "dangling=true"); do
-            if [[ "$v" != "pfa_project_nexus-data" && "$v" != "pfa_project_sonarqube-db-data" ]]; then
-                docker volume rm -f $v || true
-            fi
-          done
-        '''
-        echo "✅ Pipeline terminé."
-    }
-    failure {
-        echo "❌ Pipeline échoué !"
+        always {
+            echo "🧹 Nettoyage final des volumes anonymes sauf ceux qu'on garde..."
+            sh '''
+              for v in $(docker volume ls -q --filter "dangling=true"); do
+                if [[ "$v" != "pfa_project_nexus-data" && "$v" != "pfa_project_sonarqube-data" && "$v" != "pfa_project_sonarqube-db-data" ]]; then
+                    docker volume rm -f $v || true
+                fi
+              done
+            '''
+            echo "✅ Pipeline terminé."
+        }
+        failure { echo "❌ Pipeline échoué !" }
     }
 }
-
