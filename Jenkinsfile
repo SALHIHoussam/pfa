@@ -53,26 +53,6 @@ pipeline {
             }
         }
 
-        stage('SonarQube Analysis') {
-            environment {
-                SONAR_TOKEN = credentials('sonarqube-token') // Jenkins credential ID
-            }
-            steps {
-                script {
-                    echo "🔍 Analyse du projet avec SonarQube..."
-                    withSonarQubeEnv('SonarQube-PFA') {
-                        sh """
-                        sonar-scanner \
-                            -Dsonar.projectKey=pfa_project \
-                            -Dsonar.sources=backend,frontend/src \
-                            -Dsonar.host.url=http://sonarqube:9000 \
-                            -Dsonar.login=$SONAR_TOKEN
-                        """
-                    }
-                }
-            }
-        }
-
         stage('Docker Compose Up (Nexus only)') {
             steps {
                 script {
@@ -102,11 +82,11 @@ pipeline {
                 script {
                     echo "📦 Création des archives backend et frontend..."
                     sh '''
-                        tar -czf backend_src.tar.gz -C backend .
-                        tar -czf frontend_build.tar.gz -C frontend/build .
-                        
-                        [ -f backend_src.tar.gz ] || { echo "❌ backend_src.tar.gz missing"; exit 1; }
-                        [ -f frontend_build.tar.gz ] || { echo "❌ frontend_build.tar.gz missing"; exit 1; }
+                    tar -czf backend_src.tar.gz -C backend .
+                    tar -czf frontend_build.tar.gz -C frontend/build .
+                    
+                    [ -f backend_src.tar.gz ] || { echo "❌ backend_src.tar.gz missing"; exit 1; }
+                    [ -f frontend_build.tar.gz ] || { echo "❌ frontend_build.tar.gz missing"; exit 1; }
                     '''
                 }
             }
