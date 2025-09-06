@@ -30,7 +30,7 @@ services:
       - "8081:8081"
       - "5001:5001"
     volumes:
-      - nexus-data:/nexus-data
+      - pfa_project_nexus-data:/nexus-data
     restart: unless-stopped
 
   sonarqube:
@@ -46,7 +46,7 @@ services:
     depends_on:
       - db
     volumes:
-      - sonarqube-data:/opt/sonarqube
+      - pfa_project_sonarqube-data:/opt/sonarqube
     restart: unless-stopped
 
   db:
@@ -57,10 +57,10 @@ services:
       POSTGRES_PASSWORD: sonar
       POSTGRES_DB: sonar
     volumes:
-      - sonarqube-db-data:/var/lib/postgresql/data
+      - pfa_project_sonarqube-db-data:/var/lib/postgresql/data
     restart: unless-stopped
 
 volumes:
-  nexus-data:
-  sonarqube-db-data:
-  sonarqube-data:
+  pfa_project_nexus-data:
+  pfa_project_sonarqube-data:
+  pfa_project_sonarqube-db-data:
