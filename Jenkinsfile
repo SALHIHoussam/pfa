@@ -5,7 +5,7 @@ pipeline {
     }
     environment {
         DOCKERHUB_CREDENTIALS = credentials('dockerhubtokenpfa')
-        NEXUS_CREDENTIALS = credentials('jenkins') // Nexus username/password
+        NEXUS_CREDENTIALS = credentials('jenkins')
         NEXUS_REPO_URL = "http://127.0.0.1:8081/repository/pfa-artifacts"
         COMPOSE_PROJECT_NAME = "pfa_project"
     }
@@ -17,6 +17,19 @@ pipeline {
             steps {
                 echo '🧹 Nettoyage du workspace...'
                 cleanWs()
+            }
+        }
+
+        stage('Clean Docker Volumes') {
+            steps {
+                script {
+                    echo "🧹 Suppression des volumes anonymes..."
+                    sh '''
+                      for v in $(docker volume ls -q --filter "dangling=true"); do
+                        docker volume rm -f $v || true
+                      done
+                    '''
+                }
             }
         }
 
@@ -142,14 +155,21 @@ pipeline {
         stage('Verify Containers') {
             steps {
                 script {
-                    echo "🔍 Vérification des containers en cours d\'exécution..."
+                    echo "🔍 Vérification des containers en cours d'exécution..."
                     sh 'docker ps'
+                    sh 'docker volume ls'
                 }
             }
         }
     }
     post {
         always {
+            echo "🧹 Nettoyage final des volumes anonymes..."
+            sh '''
+              for v in $(docker volume ls -q --filter "dangling=true"); do
+                docker volume rm -f $v || true
+              done
+            '''
             echo "✅ Pipeline terminé."
         }
         failure {
