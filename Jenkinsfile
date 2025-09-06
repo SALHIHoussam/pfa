@@ -8,7 +8,6 @@ pipeline {
         NEXUS_CREDENTIALS = credentials('jenkins') // Nexus username/password
         NEXUS_REPO_URL = "http://127.0.0.1:8081/repository/pfa-artifacts"
         COMPOSE_PROJECT_NAME = "pfa_project"
-        SONAR_TOKEN = credentials('jenkins-token') // Ajouté pour SonarQube
     }
     triggers {
         githubPush()
@@ -50,23 +49,6 @@ pipeline {
                 }
                 dir('frontend') {
                     sh 'CI=false npm test -- --watchAll=false || true'
-                }
-            }
-        }
-
-        stage('SonarQube Analysis') {
-            environment {
-                scannerHome = tool 'sonar-scanner' // défini dans Jenkins (Global Tool Configuration)
-            }
-            steps {
-                withSonarQubeEnv('sonarqube') { // 'sonarqube' = nom configuré dans Jenkins
-                    sh """
-                        ${scannerHome}/bin/sonar-scanner \
-                        -Dsonar.projectKey=pfa_project \
-                        -Dsonar.sources=backend,frontend/src \
-                        -Dsonar.host.url=http://127.0.0.1:9000 \
-                        -Dsonar.login=${SONAR_TOKEN}
-                    """
                 }
             }
         }
