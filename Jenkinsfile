@@ -52,6 +52,31 @@ pipeline {
                 }
             }
         }
+        
+        stage('SonarQube Analysis') {
+            steps {
+                script {
+                    echo "🔍 Analyse SonarQube en cours..."
+                    sh '''
+                        export SONAR_HOST_URL=http://172.29.186.104:9000
+                        export SONAR_LOGIN=<ton_sonarqube_token>
+                        # Pour backend Python
+                        sonar-scanner \
+                          -Dsonar.projectKey=backend \
+                          -Dsonar.sources=backend \
+                          -Dsonar.host.url=$SONAR_HOST_URL \
+                          -Dsonar.login=$SONAR_LOGIN
+        
+                        # Pour frontend JS/React
+                        sonar-scanner \
+                          -Dsonar.projectKey=frontend \
+                          -Dsonar.sources=frontend/src \
+                          -Dsonar.host.url=$SONAR_HOST_URL \
+                          -Dsonar.login=$SONAR_LOGIN
+                    '''
+                }
+            }
+        }
 
         stage('Docker Compose Up (Nexus only)') {
             steps {
