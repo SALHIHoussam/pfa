@@ -52,6 +52,27 @@ pipeline {
                 }
             }
         }
+
+        stage('Clean Other Volumes') {
+            steps {
+                script {
+                    echo "🧹 Suppression des volumes anonymes inutiles..."
+                    sh '''
+                        for vol in $(docker volume ls -q); do
+                            case $vol in
+                                pfa_project_nexus-data|pfa_project_sonarqube-db-data)
+                                    echo "✅ Conserver volume $vol"
+                                    ;;
+                                *)
+                                    echo "🗑 Supprimer volume $vol"
+                                    docker volume rm $vol || true
+                                    ;;
+                            esac
+                        done
+                    '''
+                }
+            }
+        }
         
         stage('Docker Compose Up (Nexus only)') {
             steps {
@@ -82,11 +103,11 @@ pipeline {
                 script {
                     echo "📦 Création des archives backend et frontend..."
                     sh '''
-                    tar -czf backend_src.tar.gz -C backend .
-                    tar -czf frontend_build.tar.gz -C frontend/build .
-                    
-                    [ -f backend_src.tar.gz ] || { echo "❌ backend_src.tar.gz missing"; exit 1; }
-                    [ -f frontend_build.tar.gz ] || { echo "❌ frontend_build.tar.gz missing"; exit 1; }
+                        tar -czf backend_src.tar.gz -C backend .
+                        tar -czf frontend_build.tar.gz -C frontend/build .
+                        
+                        [ -f backend_src.tar.gz ] || { echo "❌ backend_src.tar.gz missing"; exit 1; }
+                        [ -f frontend_build.tar.gz ] || { echo "❌ frontend_build.tar.gz missing"; exit 1; }
                     '''
                 }
             }
@@ -148,7 +169,6 @@ pipeline {
             }
         }
     }
-
     post {
         always {
             echo "✅ Pipeline terminé."
