@@ -45,6 +45,8 @@ services:
       - SONARQUBE_JDBC_PASSWORD=sonar
     depends_on:
       - db
+    volumes:
+      - sonarqube-data:/opt/sonarqube
     restart: unless-stopped
 
   db:
@@ -61,3 +63,4 @@ services:
 volumes:
   nexus-data:
   sonarqube-db-data:
+  sonarqube-data:
