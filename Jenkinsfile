@@ -5,7 +5,7 @@ pipeline {
     }
     environment {
         DOCKERHUB_CREDENTIALS = credentials('dockerhubtokenpfa')
-        NEXUS_CREDENTIALS = credentials('jenkins')
+        NEXUS_CREDENTIALS = credentials('jenkins') // Nexus username/password
         NEXUS_REPO_URL = "http://127.0.0.1:8081/repository/pfa-artifacts"
         COMPOSE_PROJECT_NAME = "pfa_project"
     }
@@ -52,7 +52,7 @@ pipeline {
                 }
             }
         }
-        
+
         stage('Docker Compose Up (Nexus only)') {
             steps {
                 script {
@@ -82,11 +82,11 @@ pipeline {
                 script {
                     echo "📦 Création des archives backend et frontend..."
                     sh '''
-                        tar -czf backend_src.tar.gz -C backend .
-                        tar -czf frontend_build.tar.gz -C frontend/build .
-                        
-                        [ -f backend_src.tar.gz ] || { echo "❌ backend_src.tar.gz missing"; exit 1; }
-                        [ -f frontend_build.tar.gz ] || { echo "❌ frontend_build.tar.gz missing"; exit 1; }
+                    tar -czf backend_src.tar.gz -C backend .
+                    tar -czf frontend_build.tar.gz -C frontend/build .
+                    
+                    [ -f backend_src.tar.gz ] || { echo "❌ backend_src.tar.gz missing"; exit 1; }
+                    [ -f frontend_build.tar.gz ] || { echo "❌ frontend_build.tar.gz missing"; exit 1; }
                     '''
                 }
             }
@@ -142,26 +142,19 @@ pipeline {
         stage('Verify Containers') {
             steps {
                 script {
-                    echo "🔍 Vérification des containers en cours d'exécution..."
+                    echo "🔍 Vérification des containers en cours d\'exécution..."
                     sh 'docker ps'
-                    sh 'docker volume ls'
                 }
             }
         }
     }
-    
+
     post {
         always {
-            echo "🧹 Nettoyage final des volumes anonymes sauf ceux qu'on garde..."
-            sh '''
-              for v in $(docker volume ls -q --filter "dangling=true"); do
-                if [[ "$v" != "pfa_project_nexus-data" && "$v" != "pfa_project_sonarqube-data" && "$v" != "pfa_project_sonarqube-db-data" ]]; then
-                    docker volume rm -f $v || true
-                fi
-              done
-            '''
             echo "✅ Pipeline terminé."
         }
-        failure { echo "❌ Pipeline échoué !" }
+        failure {
+            echo "❌ Pipeline échoué !"
+        }
     }
 }
