@@ -148,15 +148,6 @@ pipeline {
             }
         }
     }
-        stage('Verify Project Volumes') {
-            steps {
-                script {
-                    echo "📂 Volumes Docker explicites du projet :"
-                    sh 'docker volume ls --filter name=pfa_project | grep -E "nexus-data|sonarqube-db-data"'
-                }
-            }
-        }
-
     post {
         always {
             echo "✅ Pipeline terminé."
