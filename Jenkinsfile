@@ -77,6 +77,30 @@ pipeline {
             }
         }
 
+        stage('Docker Compose Up (SonarQube only)') {
+            steps {
+                script {
+                    echo "🚀 Démarrage de SonarQube uniquement..."
+                    sh 'docker-compose -f docker-compose.yml up -d sonarqube'
+        
+                    echo "⏳ Attente que SonarQube soit prêt..."
+                    sh '''
+                        COUNT=0
+                        until [ "$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:9000)" = "200" ]; do
+                            COUNT=$((COUNT+1))
+                            if [ $COUNT -ge 60 ]; then
+                                echo "❌ SonarQube ne répond pas après 5 minutes."
+                                exit 1
+                            fi
+                            echo "⏳ SonarQube pas encore prêt, tentative $COUNT/60..."
+                            sleep 5
+                        done
+                        echo "✅ SonarQube est prêt !"
+                    '''
+                }
+            }
+        }
+
         stage('Package Artifacts') {
             steps {
                 script {
