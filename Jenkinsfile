@@ -101,6 +101,39 @@ pipeline {
             }
         }
 
+        stage('SonarQube Scan') {
+            steps {
+                script {
+                    echo "🔍 Lancement de l'analyse SonarQube..."
+                    withSonarQubeEnv('sonarqube-local') {
+                        sh '''
+                            # Backend : générer le coverage XML
+                            source backend/venv/bin/activate
+                            pytest --cov=backend --cov-report=xml:backend/coverage.xml
+
+                            # Frontend : coverage lcov
+                            npm --prefix frontend test -- --coverage --watchAll=false
+
+                            # Lancer l'analyse SonarQube
+                            sonar-scanner -Dproject.settings=sonar-project.properties
+                        '''
+                    }
+                }
+            }
+        }
+
+        stage('SonarQube Quality Gate') {
+            steps {
+                script {
+                    echo "⏳ Vérification du Quality Gate SonarQube..."
+                    timeout(time: 5, unit: 'MINUTES') {
+                        waitForQualityGate abortPipeline: true
+                    }
+                }
+            }
+        }
+
+        
         stage('Package Artifacts') {
             steps {
                 script {
