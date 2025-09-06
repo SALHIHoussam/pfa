@@ -33,5 +33,23 @@ services:
       - nexus-data:/nexus-data
     restart: unless-stopped
 
+  sonarqube:
+    image: sonarqube:community
+    container_name: sonarqube
+    ports:
+      - "9000:9000"
+    environment:
+      - SONAR_ES_BOOTSTRAP_CHECKS_DISABLE=true
+    volumes:
+      - sonarqube-data:/opt/sonarqube/data
+      - sonarqube-logs:/opt/sonarqube/logs
+      - sonarqube-extensions:/opt/sonarqube/extensions
+      - sonarqube-temp:/opt/sonarqube/temp  # Ajout pour éviter le volume anonyme
+    restart: unless-stopped
+
 volumes:
   nexus-data:
+  sonarqube-data:
+  sonarqube-logs:
+  sonarqube-extensions:
+  sonarqube-temp:
