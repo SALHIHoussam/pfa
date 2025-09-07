@@ -100,20 +100,22 @@ pipeline {
                 }
             }
         }
-
+        
         stage('SonarQube Scan') {
             steps {
                 script {
                     echo "🔍 Lancement de l'analyse SonarQube..."
                     withSonarQubeEnv('sonarqube-local') {
                         sh '''
-                            # Backend : générer le coverage XML
-                            source backend/venv/bin/activate
+                            #!/bin/bash
+                            . backend/venv/bin/activate
+        
+                            # Backend : coverage
                             pytest --cov=backend --cov-report=xml:backend/coverage.xml
-
-                            # Frontend : coverage lcov
+        
+                            # Frontend : coverage
                             npm --prefix frontend test -- --coverage --watchAll=false
-
+        
                             # Lancer l'analyse SonarQube
                             sonar-scanner -Dproject.settings=sonar-project.properties
                         '''
@@ -122,6 +124,7 @@ pipeline {
             }
         }
 
+        
         stage('SonarQube Quality Gate') {
             steps {
                 script {
