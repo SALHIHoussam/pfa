@@ -45,10 +45,13 @@ pipeline {
         stage('Run Tests') {
             steps {
                 dir('backend') {
-                    sh 'source venv/bin/activate && pytest || true'
+                    sh '''
+                        . venv/bin/activate
+                        python -m pytest --cov=backend --cov-report=xml:backend/coverage.xml || true
+                    '''
                 }
                 dir('frontend') {
-                    sh 'CI=false npm test -- --watchAll=false || true'
+                    sh 'CI=false npm test -- --coverage --watchAll=false || true'
                 }
             }
         }
