@@ -109,21 +109,11 @@ pipeline {
                 script {
                     echo "🔍 Lancement de l'analyse SonarQube..."
                     withSonarQubeEnv('sonarqube-local') {
-                        dir('backend') {
-                            sh '''
-                                # Activer l'environnement virtuel
-                                . venv/bin/activate
-                                # Pytest déjà exécuté dans Run Tests, coverage déjà générée
-                            '''
-                        }
-                        dir('frontend') {
-                            sh '''
-                                # npm test déjà exécuté dans Run Tests, coverage déjà générée
-                            '''
-                        }
-        
-                        // Lancer l'analyse SonarQube (commentaire Groovy, pas #)
-                        sh 'sonar-scanner -Dproject.settings=sonar-project.properties'
+                        // Utiliser l'installation déclarée dans Jenkins
+                        def scannerHome = tool 'sonar-scanner'
+                        
+                        // Backend et frontend déjà testés, coverage généré
+                        sh "${scannerHome}/bin/sonar-scanner -Dproject.settings=sonar-project.properties"
                     }
                 }
             }
