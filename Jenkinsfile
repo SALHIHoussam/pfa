@@ -103,8 +103,7 @@ pipeline {
                 }
             }
         }
-        
-        
+
         stage('SonarQube Scan') {
             steps {
                 script {
@@ -123,7 +122,7 @@ pipeline {
                             '''
                         }
         
-                        # Lancer l'analyse SonarQube en utilisant les rapports générés
+                        // Lancer l'analyse SonarQube (commentaire Groovy, pas #)
                         sh 'sonar-scanner -Dproject.settings=sonar-project.properties'
                     }
                 }
