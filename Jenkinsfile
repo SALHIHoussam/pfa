@@ -108,10 +108,8 @@ pipeline {
                     withSonarQubeEnv('sonarqube-local') {
                         sh '''
                             #!/bin/bash
-                            . backend/venv/bin/activate
-        
                             # Backend : coverage
-                            pytest --cov=backend --cov-report=xml:backend/coverage.xml
+                            backend/venv/bin/pytest --cov=backend --cov-report=xml:backend/coverage.xml
         
                             # Frontend : coverage
                             npm --prefix frontend test -- --coverage --watchAll=false
