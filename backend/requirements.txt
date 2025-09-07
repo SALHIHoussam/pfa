@@ -14,3 +14,7 @@ PyPDF2
 cryptography
 pytz
 python-dotenv
+
+# Pour les tests
+pytest
+pytest-cov
