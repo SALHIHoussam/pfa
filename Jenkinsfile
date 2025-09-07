@@ -104,22 +104,27 @@ pipeline {
             }
         }
         
+        
         stage('SonarQube Scan') {
             steps {
                 script {
                     echo "🔍 Lancement de l'analyse SonarQube..."
                     withSonarQubeEnv('sonarqube-local') {
-                        sh '''
-                            #!/bin/bash
-                            # Backend : coverage
-                            backend/venv/bin/pytest --cov=backend --cov-report=xml:backend/coverage.xml
+                        dir('backend') {
+                            sh '''
+                                # Activer l'environnement virtuel
+                                . venv/bin/activate
+                                # Pytest déjà exécuté dans Run Tests, coverage déjà générée
+                            '''
+                        }
+                        dir('frontend') {
+                            sh '''
+                                # npm test déjà exécuté dans Run Tests, coverage déjà générée
+                            '''
+                        }
         
-                            # Frontend : coverage
-                            npm --prefix frontend test -- --coverage --watchAll=false
-        
-                            # Lancer l'analyse SonarQube
-                            sonar-scanner -Dproject.settings=sonar-project.properties
-                        '''
+                        # Lancer l'analyse SonarQube en utilisant les rapports générés
+                        sh 'sonar-scanner -Dproject.settings=sonar-project.properties'
                     }
                 }
             }
