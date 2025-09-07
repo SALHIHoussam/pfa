@@ -109,39 +109,34 @@ pipeline {
                 script {
                     echo "🔍 Lancement de l'analyse SonarQube..."
                     withSonarQubeEnv('sonarqube-local') {
-                        // Utiliser l'installation déclarée dans Jenkins
                         def scannerHome = tool 'sonar-scanner'
-                        
-                        // Backend et frontend déjà testés, coverage généré
                         sh "${scannerHome}/bin/sonar-scanner -Dproject.settings=sonar-project.properties"
                     }
                 }
             }
         }
 
-        
         stage('SonarQube Quality Gate') {
             steps {
                 script {
                     echo "⏳ Vérification du Quality Gate SonarQube..."
-                    timeout(time: 10, unit: 'MINUTES') {
+                    timeout(time: 15, unit: 'MINUTES') {  // augmenté de 10 à 15 min
                         waitForQualityGate abortPipeline: true
                     }
                 }
             }
         }
 
-        
         stage('Package Artifacts') {
             steps {
                 script {
                     echo "📦 Création des archives backend et frontend..."
                     sh '''
-                    tar -czf backend_src.tar.gz -C backend .
-                    tar -czf frontend_build.tar.gz -C frontend/build .
-                    
-                    [ -f backend_src.tar.gz ] || { echo "❌ backend_src.tar.gz missing"; exit 1; }
-                    [ -f frontend_build.tar.gz ] || { echo "❌ frontend_build.tar.gz missing"; exit 1; }
+                        tar -czf backend_src.tar.gz -C backend .
+                        tar -czf frontend_build.tar.gz -C frontend/build .
+                        
+                        [ -f backend_src.tar.gz ] || { echo "❌ backend_src.tar.gz missing"; exit 1; }
+                        [ -f frontend_build.tar.gz ] || { echo "❌ frontend_build.tar.gz missing"; exit 1; }
                     '''
                 }
             }
