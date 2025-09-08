@@ -18,3 +18,4 @@ python-dotenv
 # Pour les tests
 pytest
 pytest-cov
+prometheus-flask-exporter
