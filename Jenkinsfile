@@ -56,27 +56,39 @@ pipeline {
         stage('Docker Compose Up Services Individuels') {
             steps {
                 script {
-                    def services = ['nexus':8081, 'sonarqube':9000, 'prometheus':9090, 'grafana':3001]
-                    services.each { svc, port ->
+                    def services = [
+                        'nexus': [port:8081, url:'http://127.0.0.1:8081'],
+                        'sonarqube': [port:9000, url:'http://127.0.0.1:9000/api/system/status'],
+                        'prometheus': [port:9090, url:'http://127.0.0.1:9090/metrics'],
+                        'grafana': [port:3001, url:'http://127.0.0.1:3001/api/health']
+                    ]
+        
+                    services.each { svc, config ->
                         echo "🚀 Démarrage de ${svc}..."
                         sh "docker-compose -f docker-compose.yml up -d ${svc}"
-                        sh """
-                        COUNT=0
-                        until [ "\$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:${port})" = "200" ]; do
-                            COUNT=\$((COUNT+1))
-                            if [ \$COUNT -ge 60 ]; then
-                                echo "❌ ${svc} ne répond pas après 5 minutes."
-                                exit 1
-                            fi
-                            echo "⏳ ${svc} pas encore prêt, tentative \$COUNT/60..."
-                            sleep 5
-                        done
-                        echo "✅ ${svc} est prêt !"
-                        """
+        
+                        // Vérification de disponibilité
+                        timeout(time: 10, unit: 'MINUTES') {
+                            waitUntil {
+                                def code = sh(
+                                    script: "curl -s -o /dev/null -w '%{http_code}' ${config.url}",
+                                    returnStdout: true
+                                ).trim()
+                                if(code in ['200','302']) {
+                                    echo "✅ ${svc} est prêt ! (HTTP ${code})"
+                                    return true
+                                } else {
+                                    echo "⏳ ${svc} pas encore prêt, HTTP ${code}..."
+                                    sleep 5
+                                    return false
+                                }
+                            }
+                        }
                     }
                 }
             }
         }
+
 
         stage('SonarQube Scan') {
             steps {
