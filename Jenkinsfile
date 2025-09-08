@@ -117,6 +117,53 @@ pipeline {
                 }
             }
         }
+        
+        stage('Docker Compose Up (Prometheus only)') {
+            steps {
+                script {
+                    echo "🚀 Démarrage de Prometheus..."
+                    sh 'docker-compose -f docker-compose.yml up -d prometheus'
+                    echo "⏳ Attente que Prometheus soit prêt..."
+                    sh '''
+                    COUNT=0
+                    until [ "$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:9090)" = "200" ]; do
+                        COUNT=$((COUNT+1))
+                        if [ $COUNT -ge 60 ]; then
+                            echo "❌ Prometheus ne répond pas après 5 minutes."
+                            exit 1
+                        fi
+                        echo "⏳ Prometheus pas encore prêt, tentative $COUNT/60..."
+                        sleep 5
+                    done
+                    echo "✅ Prometheus est prêt !"
+                    '''
+                }
+            }
+        }
+        
+        stage('Docker Compose Up (Grafana only)') {
+            steps {
+                script {
+                    echo "🚀 Démarrage de Grafana..."
+                    sh 'docker-compose -f docker-compose.yml up -d grafana'
+                    echo "⏳ Attente que Grafana soit prêt..."
+                    sh '''
+                    COUNT=0
+                    until [ "$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:3001)" = "200" ]; do
+                        COUNT=$((COUNT+1))
+                        if [ $COUNT -ge 60 ]; then
+                            echo "❌ Grafana ne répond pas après 5 minutes."
+                            exit 1
+                        fi
+                        echo "⏳ Grafana pas encore prêt, tentative $COUNT/60..."
+                        sleep 5
+                    done
+                    echo "✅ Grafana est prêt !"
+                    '''
+                }
+            }
+        }
+
         stage('Package Artifacts') {
             steps {
                 script {
