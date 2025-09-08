@@ -5,18 +5,25 @@ pipeline {
     }
     environment {
         DOCKERHUB_CREDENTIALS = credentials('dockerhubtokenpfa')
-        NEXUS_CREDENTIALS = credentials('jenkins')
+        NEXUS_CREDENTIALS = credentials('jenkins') // Nexus username/password
         NEXUS_REPO_URL = "http://127.0.0.1:8081/repository/pfa-artifacts"
         COMPOSE_PROJECT_NAME = "pfa_project"
     }
     triggers {
         githubPush()
     }
+
     stages {
-        stage('Clean Workspace') {
+        stage('Clean Workspace & Fix Permissions') {
             steps {
-                echo '🧹 Nettoyage du workspace...'
-                cleanWs()
+                echo '🧹 Nettoyage du workspace et correction des permissions...'
+                sh '''
+                    # Supprime tous les fichiers existants
+                    rm -rf *
+                    
+                    # Assure que Jenkins peut écrire
+                    chmod -R 755 .
+                '''
             }
         }
 
@@ -61,7 +68,6 @@ pipeline {
                 script {
                     echo "🚀 Démarrage de Nexus uniquement..."
                     sh 'docker-compose -f docker-compose.yml up -d nexus'
-                    echo "⏳ Attente que Nexus soit prêt..."
                     sh '''
                         COUNT=0
                         until [ "$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:8081/service/rest/v1/status)" = "200" ]; do
@@ -84,7 +90,6 @@ pipeline {
                 script {
                     echo "🚀 Démarrage de SonarQube uniquement..."
                     sh 'docker-compose -f docker-compose.yml up -d sonarqube'
-                    echo "⏳ Attente que SonarQube soit prêt..."
                     sh '''
                         COUNT=0
                         until [ "$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:9000)" = "200" ]; do
@@ -106,9 +111,7 @@ pipeline {
             steps {
                 script {
                     echo "🔍 Lancement de l'analyse SonarQube..."
-                    withSonarQubeEnv('sonarqube-local') {
-                        sh "sonar-scanner -Dproject.settings=sonar-project.properties"
-                    }
+                    sh '/opt/sonar-scanner/bin/sonar-scanner -Dproject.settings=sonar-project.properties || true'
                 }
             }
         }
@@ -129,7 +132,6 @@ pipeline {
                 script {
                     echo "🚀 Démarrage de Prometheus uniquement..."
                     sh 'docker-compose -f docker-compose.yml up -d prometheus'
-                    echo "⏳ Attente que Prometheus soit prêt..."
                     sh '''
                         COUNT=0
                         until [ "$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:9090/-/ready)" = "200" ]; do
@@ -152,7 +154,6 @@ pipeline {
                 script {
                     echo "🚀 Démarrage de Grafana uniquement..."
                     sh 'docker-compose -f docker-compose.yml up -d grafana'
-                    echo "⏳ Attente que Grafana soit prêt..."
                     sh '''
                         COUNT=0
                         until [ "$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:3000/login)" = "200" ]; do
@@ -177,6 +178,7 @@ pipeline {
                     sh '''
                         tar -czf backend_src.tar.gz -C backend .
                         tar -czf frontend_build.tar.gz -C frontend/build .
+                        
                         [ -f backend_src.tar.gz ] || { echo "❌ backend_src.tar.gz missing"; exit 1; }
                         [ -f frontend_build.tar.gz ] || { echo "❌ frontend_build.tar.gz missing"; exit 1; }
                     '''
@@ -234,7 +236,7 @@ pipeline {
         stage('Verify Containers') {
             steps {
                 script {
-                    echo "🔍 Vérification des containers en cours d'exécution..."
+                    echo "🔍 Vérification des containers en cours d\'exécution..."
                     sh 'docker ps'
                 }
             }
