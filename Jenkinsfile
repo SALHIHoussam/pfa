@@ -29,16 +29,17 @@ pipeline {
         
         stage('Checkout') {
             steps {
-                echo '🧹 Nettoyage du workspace et correction des permissions avant checkout...'
+                echo '🧹 Nettoyage complet du workspace avant checkout...'
                 sh '''
-                    # Supprime tout ce qui peut bloquer le checkout
-                    sudo rm -rf *
-                    sudo chmod -R 777 .
+                    # Supprime tous les fichiers et dossiers (attention, workspace sera vidé)
+                    rm -rf *
+                    # Donne tous les droits pour éviter les problèmes de permission
+                    chmod -R 777 .
                 '''
-                // Puis on fait le checkout Git normalement
                 git branch: 'stagepfa', url: 'https://github.com/SALHIHoussam/pfa.git', credentialsId: 'github-token'
             }
         }
+
 
 
         stage('Build Frontend & Backend') {
