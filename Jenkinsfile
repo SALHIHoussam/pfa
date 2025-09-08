@@ -16,7 +16,7 @@ pipeline {
         stage('Clean Workspace') {
             steps {
                 echo '🧹 Nettoyage complet du workspace Jenkins...'
-                deleteDir()
+                deleteDir() // supprime tous les fichiers du workspace, y compris monitoring/prometheus.yml
             }
         }
 
