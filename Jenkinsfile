@@ -135,19 +135,14 @@ pipeline {
 
         stage('Upload Artifacts to Nexus') {
             steps {
-                script {
-                    withCredentials([usernamePassword(credentialsId: 'jenkins', usernameVariable: 'USR', passwordVariable: 'PWD')]) {
-                        sh """
-                        BACKEND_FILE=backend_src_\$BUILD_TIMESTAMP.tar.gz
-                        FRONTEND_FILE=frontend_build_\$BUILD_TIMESTAMP.tar.gz
-
-                        echo "📤 Upload de \$BACKEND_FILE..."
-                        curl -u \$USR:\$PWD --retry 5 --retry-delay 5 --fail --upload-file \$BACKEND_FILE ${NEXUS_REPO_URL}/\$BACKEND_FILE
-
-                        echo "📤 Upload de \$FRONTEND_FILE..."
-                        curl -u \$USR:\$PWD --retry 5 --retry-delay 5 --fail --upload-file \$FRONTEND_FILE ${NEXUS_REPO_URL}/\$FRONTEND_FILE
-                        """
-                    }
+                withCredentials([usernamePassword(credentialsId: 'jenkins', usernameVariable: 'USR', passwordVariable: 'PWD')]) {
+                    sh """
+                    echo "📤 Upload de backend..."
+                    curl -u \$USR:\$PWD --retry 5 --retry-delay 5 --fail --upload-file backend_src.tar.gz ${NEXUS_REPO_URL}/backend_src.tar.gz
+        
+                    echo "📤 Upload de frontend..."
+                    curl -u \$USR:\$PWD --retry 5 --retry-delay 5 --fail --upload-file frontend_build.tar.gz ${NEXUS_REPO_URL}/frontend_build.tar.gz
+                    """
                 }
             }
         }
