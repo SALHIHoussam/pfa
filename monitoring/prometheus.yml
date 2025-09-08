@@ -1,0 +1,22 @@
+# monitoring/prometheus.yml
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  # Prometheus lui-même
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  # Backend Flask (tu peux ajouter le endpoint /metrics avec flask_prometheus_metrics)
+  - job_name: 'flask-backend'
+    static_configs:
+      - targets: ['backend:5000']
+
+  # Grafana (monitoring interne)
+  - job_name: 'grafana'
+    static_configs:
+      - targets: ['grafana:3000']
+
+  # N'importe quel autre service à monitorer peut être ajouté ici
