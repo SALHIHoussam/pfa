@@ -16,7 +16,7 @@ pipeline {
         stage('Clean Workspace') {
             steps {
                 echo '🧹 Nettoyage complet du workspace Jenkins...'
-                deleteDir() // supprime tous les fichiers du workspace
+                deleteDir()
             }
         }
 
@@ -62,16 +62,15 @@ pipeline {
                         'prometheus': [port:9090, url:'http://127.0.0.1:9090/metrics'],
                         'grafana': [port:3001, url:'http://127.0.0.1:3001/api/health']
                     ]
-        
+
                     services.each { svc, config ->
                         echo "🚀 Démarrage de ${svc}..."
                         sh "docker-compose -f docker-compose.yml up -d ${svc}"
-        
-                        // Vérification de disponibilité
+
                         timeout(time: 10, unit: 'MINUTES') {
                             waitUntil {
                                 def code = sh(
-                                    script: "curl -s -o /dev/null -w '%{http_code}' ${config.url}",
+                                    script: """curl -s -o /dev/null -w '%{http_code}' --max-time 10 --retry 5 --retry-delay 5 ${config.url} || echo 0""",
                                     returnStdout: true
                                 ).trim()
                                 if(code in ['200','302']) {
@@ -88,7 +87,6 @@ pipeline {
                 }
             }
         }
-
 
         stage('SonarQube Scan') {
             steps {
@@ -131,8 +129,8 @@ pipeline {
             steps {
                 withCredentials([usernamePassword(credentialsId: 'jenkins', usernameVariable: 'USR', passwordVariable: 'PWD')]) {
                     sh """
-                    curl -u \$USR:\$PWD --upload-file backend_src.tar.gz ${NEXUS_REPO_URL}/backend_src.tar.gz
-                    curl -u \$USR:\$PWD --upload-file frontend_build.tar.gz ${NEXUS_REPO_URL}/frontend_build.tar.gz
+                    curl -u \$USR:\$PWD --retry 5 --retry-delay 5 --fail --upload-file backend_src.tar.gz ${NEXUS_REPO_URL}/backend_src.tar.gz
+                    curl -u \$USR:\$PWD --retry 5 --retry-delay 5 --fail --upload-file frontend_build.tar.gz ${NEXUS_REPO_URL}/frontend_build.tar.gz
                     """
                 }
             }
