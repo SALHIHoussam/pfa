@@ -117,18 +117,13 @@ pipeline {
             steps {
                 script {
                     echo "📦 Création des archives backend et frontend..."
-                    sh """
-                    BACKEND_FILE=backend_src_\$BUILD_TIMESTAMP.tar.gz
-                    FRONTEND_FILE=frontend_build_\$BUILD_TIMESTAMP.tar.gz
-
-                    tar -czf \$BACKEND_FILE -C backend .
-                    tar -czf \$FRONTEND_FILE -C frontend/build .
-
-                    [ -f \$BACKEND_FILE ] || { echo '❌ Backend archive missing'; exit 1; }
-                    [ -f \$FRONTEND_FILE ] || { echo '❌ Frontend archive missing'; exit 1; }
-
-                    echo "✅ Archives créées: \$BACKEND_FILE, \$FRONTEND_FILE"
-                    """
+                    sh '''
+                    tar -czf backend_src.tar.gz -C backend .
+                    tar -czf frontend_build.tar.gz -C frontend/build .
+                    
+                    [ -f backend_src.tar.gz ] || { echo "❌ backend_src.tar.gz missing"; exit 1; }
+                    [ -f frontend_build.tar.gz ] || { echo "❌ frontend_build.tar.gz missing"; exit 1; }
+                    '''
                 }
             }
         }
