@@ -5,14 +5,16 @@ pipeline {
     }
     environment {
         DOCKERHUB_CREDENTIALS = credentials('dockerhubtokenpfa')
-        NEXUS_CREDENTIALS = credentials('jenkins') // Nexus username/password
+        NEXUS_CREDENTIALS = credentials('jenkins')
         NEXUS_REPO_URL = "http://127.0.0.1:8081/repository/pfa-artifacts"
         COMPOSE_PROJECT_NAME = "pfa_project"
+        BUILD_TIMESTAMP = "${new Date().format('yyyyMMdd_HHmmss')}"
     }
     triggers {
         githubPush()
     }
     stages {
+
         stage('Clean Workspace') {
             steps {
                 echo '🧹 Nettoyage complet du workspace Jenkins...'
@@ -115,23 +117,37 @@ pipeline {
             steps {
                 script {
                     echo "📦 Création des archives backend et frontend..."
-                    sh '''
-                    tar -czf backend_src.tar.gz -C backend .
-                    tar -czf frontend_build.tar.gz -C frontend/build .
-                    [ -f backend_src.tar.gz ] || { echo "❌ backend_src.tar.gz missing"; exit 1; }
-                    [ -f frontend_build.tar.gz ] || { echo "❌ frontend_build.tar.gz missing"; exit 1; }
-                    '''
+                    sh """
+                    BACKEND_FILE=backend_src_\$BUILD_TIMESTAMP.tar.gz
+                    FRONTEND_FILE=frontend_build_\$BUILD_TIMESTAMP.tar.gz
+
+                    tar -czf \$BACKEND_FILE -C backend .
+                    tar -czf \$FRONTEND_FILE -C frontend/build .
+
+                    [ -f \$BACKEND_FILE ] || { echo '❌ Backend archive missing'; exit 1; }
+                    [ -f \$FRONTEND_FILE ] || { echo '❌ Frontend archive missing'; exit 1; }
+
+                    echo "✅ Archives créées: \$BACKEND_FILE, \$FRONTEND_FILE"
+                    """
                 }
             }
         }
 
         stage('Upload Artifacts to Nexus') {
             steps {
-                withCredentials([usernamePassword(credentialsId: 'jenkins', usernameVariable: 'USR', passwordVariable: 'PWD')]) {
-                    sh """
-                    curl -u \$USR:\$PWD --retry 5 --retry-delay 5 --fail --upload-file backend_src.tar.gz ${NEXUS_REPO_URL}/backend_src.tar.gz
-                    curl -u \$USR:\$PWD --retry 5 --retry-delay 5 --fail --upload-file frontend_build.tar.gz ${NEXUS_REPO_URL}/frontend_build.tar.gz
-                    """
+                script {
+                    withCredentials([usernamePassword(credentialsId: 'jenkins', usernameVariable: 'USR', passwordVariable: 'PWD')]) {
+                        sh """
+                        BACKEND_FILE=backend_src_\$BUILD_TIMESTAMP.tar.gz
+                        FRONTEND_FILE=frontend_build_\$BUILD_TIMESTAMP.tar.gz
+
+                        echo "📤 Upload de \$BACKEND_FILE..."
+                        curl -u \$USR:\$PWD --retry 5 --retry-delay 5 --fail --upload-file \$BACKEND_FILE ${NEXUS_REPO_URL}/\$BACKEND_FILE
+
+                        echo "📤 Upload de \$FRONTEND_FILE..."
+                        curl -u \$USR:\$PWD --retry 5 --retry-delay 5 --fail --upload-file \$FRONTEND_FILE ${NEXUS_REPO_URL}/\$FRONTEND_FILE
+                        """
+                    }
                 }
             }
         }
