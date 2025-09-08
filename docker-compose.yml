@@ -27,8 +27,8 @@ services:
     image: sonatype/nexus3
     container_name: nexus
     ports:
-      - "8081:8081" # Interface web
-      - "5001:5001" # Docker registry
+      - "8081:8081"
+      - "5001:5001"
     volumes:
       - nexus-data:/nexus-data
     restart: unless-stopped
@@ -44,7 +44,28 @@ services:
       - sonarqube-data:/opt/sonarqube/data
       - sonarqube-logs:/opt/sonarqube/logs
       - sonarqube-extensions:/opt/sonarqube/extensions
-      - sonarqube-temp:/opt/sonarqube/temp  # Ajout pour éviter le volume anonyme
+      - sonarqube-temp:/opt/sonarqube/temp
+    restart: unless-stopped
+
+  prometheus:
+    image: prom/prometheus
+    container_name: prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus-data:/prometheus
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana
+    container_name: grafana
+    ports:
+      - "3001:3000"
+    depends_on:
+      - prometheus
+    volumes:
+      - grafana-data:/var/lib/grafana
     restart: unless-stopped
 
 volumes:
@@ -53,3 +74,5 @@ volumes:
   sonarqube-logs:
   sonarqube-extensions:
   sonarqube-temp:
+  prometheus-data:
+  grafana-data:
