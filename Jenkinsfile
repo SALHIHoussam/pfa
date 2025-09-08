@@ -137,11 +137,8 @@ pipeline {
             steps {
                 withCredentials([usernamePassword(credentialsId: 'jenkins', usernameVariable: 'USR', passwordVariable: 'PWD')]) {
                     sh """
-                    echo "📤 Upload de backend..."
-                    curl -u \$USR:\$PWD --retry 5 --retry-delay 5 --fail --upload-file backend_src.tar.gz ${NEXUS_REPO_URL}/backend_src.tar.gz
-        
-                    echo "📤 Upload de frontend..."
-                    curl -u \$USR:\$PWD --retry 5 --retry-delay 5 --fail --upload-file frontend_build.tar.gz ${NEXUS_REPO_URL}/frontend_build.tar.gz
+                        curl -u $USR:$PWD --upload-file backend_src.tar.gz ${NEXUS_REPO_URL}/backend_src.tar.gz
+                        curl -u $USR:$PWD --upload-file frontend_build.tar.gz ${NEXUS_REPO_URL}/frontend_build.tar.gz
                     """
                 }
             }
