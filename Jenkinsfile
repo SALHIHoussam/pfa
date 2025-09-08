@@ -5,7 +5,7 @@ pipeline {
     }
     environment {
         DOCKERHUB_CREDENTIALS = credentials('dockerhubtokenpfa')
-        NEXUS_CREDENTIALS = credentials('jenkins') // Nexus username/password
+        NEXUS_CREDENTIALS = credentials('jenkins')
         NEXUS_REPO_URL = "http://127.0.0.1:8081/repository/pfa-artifacts"
         COMPOSE_PROJECT_NAME = "pfa_project"
     }
@@ -18,29 +18,22 @@ pipeline {
             steps {
                 echo '🧹 Nettoyage du workspace et correction des permissions...'
                 sh '''
-                    # Supprime tous les fichiers existants
-                    rm -rf *
-                    
-                    # Assure que Jenkins peut écrire
-                    chmod -R 755 .
+                    echo "🔹 Reset workspace Git et suppression fichiers temporaires"
+                    # Reset tout changement local
+                    git reset --hard || true
+                    git clean -fdx || true
+                    # Donne tous les droits sur le workspace pour Jenkins
+                    chmod -R 777 .
                 '''
             }
         }
-        
+
         stage('Checkout') {
             steps {
-                echo '🧹 Nettoyage complet du workspace avant checkout...'
-                sh '''
-                    # Supprime tous les fichiers et dossiers (attention, workspace sera vidé)
-                    rm -rf *
-                    # Donne tous les droits pour éviter les problèmes de permission
-                    chmod -R 777 .
-                '''
+                echo '📥 Checkout sécurisé du repo...'
                 git branch: 'stagepfa', url: 'https://github.com/SALHIHoussam/pfa.git', credentialsId: 'github-token'
             }
         }
-
-
 
         stage('Build Frontend & Backend') {
             steps {
@@ -72,110 +65,48 @@ pipeline {
             }
         }
 
-        stage('Docker Compose Up (Nexus only)') {
+        stage('Start Docker Services & Wait') {
             steps {
                 script {
-                    echo "🚀 Démarrage de Nexus uniquement..."
+                    def wait_for_service = { url, retries=60, delay=5 ->
+                        for (int i=1; i<=retries; i++) {
+                            def code = sh(script: "curl -s -o /dev/null -w \"%{http_code}\" ${url}", returnStdout: true).trim()
+                            if (code == "200") { echo "✅ Service ready: ${url}"; return }
+                            echo "⏳ Service pas prêt: ${url}, attempt ${i}/${retries}"
+                            sleep delay
+                        }
+                        error "❌ Service ${url} ne répond pas après ${retries*delay} secondes"
+                    }
+
+                    // Démarre services séparément
+                    echo "🚀 Démarrage de Nexus..."
                     sh 'docker-compose -f docker-compose.yml up -d nexus'
-                    sh '''
-                        COUNT=0
-                        until [ "$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:8081/service/rest/v1/status)" = "200" ]; do
-                            COUNT=$((COUNT+1))
-                            if [ $COUNT -ge 60 ]; then
-                                echo "❌ Nexus ne répond pas après 5 minutes."
-                                exit 1
-                            fi
-                            echo "⏳ Nexus pas encore prêt, tentative $COUNT/60..."
-                            sleep 5
-                        done
-                        echo "✅ Nexus est prêt !"
-                    '''
-                }
-            }
-        }
+                    wait_for_service("http://127.0.0.1:8081/service/rest/v1/status")
 
-        stage('Docker Compose Up (SonarQube only)') {
-            steps {
-                script {
-                    echo "🚀 Démarrage de SonarQube uniquement..."
+                    echo "🚀 Démarrage de SonarQube..."
                     sh 'docker-compose -f docker-compose.yml up -d sonarqube'
-                    sh '''
-                        COUNT=0
-                        until [ "$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:9000)" = "200" ]; do
-                            COUNT=$((COUNT+1))
-                            if [ $COUNT -ge 60 ]; then
-                                echo "❌ SonarQube ne répond pas après 5 minutes."
-                                exit 1
-                            fi
-                            echo "⏳ SonarQube pas encore prêt, tentative $COUNT/60..."
-                            sleep 5
-                        done
-                        echo "✅ SonarQube est prêt !"
-                    '''
+                    wait_for_service("http://127.0.0.1:9000")
+
+                    echo "🚀 Démarrage de Prometheus..."
+                    sh 'docker-compose -f docker-compose.yml up -d prometheus'
+                    wait_for_service("http://127.0.0.1:9090/-/ready")
+
+                    echo "🚀 Démarrage de Grafana..."
+                    sh 'docker-compose -f docker-compose.yml up -d grafana'
+                    wait_for_service("http://127.0.0.1:3000/login")
                 }
             }
         }
 
-        stage('SonarQube Scan') {
+        stage('SonarQube Scan & Quality Gate') {
             steps {
                 script {
-                    echo "🔍 Lancement de l'analyse SonarQube..."
+                    echo "🔍 Analyse SonarQube..."
                     sh '/opt/sonar-scanner/bin/sonar-scanner -Dproject.settings=sonar-project.properties || true'
-                }
-            }
-        }
-
-        stage('SonarQube Quality Gate') {
-            steps {
-                script {
-                    echo "⏳ Vérification du Quality Gate SonarQube..."
+                    echo "⏳ Vérification Quality Gate..."
                     timeout(time: 15, unit: 'MINUTES') {
                         waitForQualityGate abortPipeline: true
                     }
-                }
-            }
-        }
-
-        stage('Docker Compose Up (Prometheus only)') {
-            steps {
-                script {
-                    echo "🚀 Démarrage de Prometheus uniquement..."
-                    sh 'docker-compose -f docker-compose.yml up -d prometheus'
-                    sh '''
-                        COUNT=0
-                        until [ "$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:9090/-/ready)" = "200" ]; do
-                            COUNT=$((COUNT+1))
-                            if [ $COUNT -ge 60 ]; then
-                                echo "❌ Prometheus ne répond pas après 5 minutes."
-                                exit 1
-                            fi
-                            echo "⏳ Prometheus pas encore prêt, tentative $COUNT/60..."
-                            sleep 5
-                        done
-                        echo "✅ Prometheus est prêt !"
-                    '''
-                }
-            }
-        }
-
-        stage('Docker Compose Up (Grafana only)') {
-            steps {
-                script {
-                    echo "🚀 Démarrage de Grafana uniquement..."
-                    sh 'docker-compose -f docker-compose.yml up -d grafana'
-                    sh '''
-                        COUNT=0
-                        until [ "$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:3000/login)" = "200" ]; do
-                            COUNT=$((COUNT+1))
-                            if [ $COUNT -ge 60 ]; then
-                                echo "❌ Grafana ne répond pas après 5 minutes."
-                                exit 1
-                            fi
-                            echo "⏳ Grafana pas encore prêt, tentative $COUNT/60..."
-                            sleep 5
-                        done
-                        echo "✅ Grafana est prêt !"
-                    '''
                 }
             }
         }
@@ -206,28 +137,12 @@ pipeline {
             }
         }
 
-        stage('Docker Compose Build') {
+        stage('Docker Compose Build & Push') {
             steps {
                 script {
-                    echo "🐳 Construction des images Docker avec Compose..."
+                    echo "🐳 Build & push images Docker..."
                     sh 'docker-compose -f docker-compose.yml build --no-cache'
-                }
-            }
-        }
-
-        stage('Docker Login') {
-            steps {
-                script {
-                    echo "🔑 Connexion à DockerHub..."
                     sh "echo ${DOCKERHUB_CREDENTIALS_PSW} | docker login -u ${DOCKERHUB_CREDENTIALS_USR} --password-stdin"
-                }
-            }
-        }
-
-        stage('Docker Compose Push') {
-            steps {
-                script {
-                    echo "📤 Push des images Docker via Compose..."
                     sh 'docker-compose -f docker-compose.yml push'
                 }
             }
@@ -238,14 +153,6 @@ pipeline {
                 script {
                     echo "🚀 Démarrage complet des containers..."
                     sh 'docker-compose -f docker-compose.yml up -d'
-                }
-            }
-        }
-
-        stage('Verify Containers') {
-            steps {
-                script {
-                    echo "🔍 Vérification des containers en cours d\'exécution..."
                     sh 'docker ps'
                 }
             }
