@@ -12,6 +12,8 @@ services:
     environment:
       - FLASK_ENV=production
     restart: unless-stopped
+    networks:
+      - monitoring   # ✅ ajouté
 
   frontend:
     build: ./frontend
@@ -22,6 +24,8 @@ services:
     depends_on:
       - backend
     restart: unless-stopped
+    networks:
+      - monitoring   # ✅ ajouté
 
   nexus:
     image: sonatype/nexus3
@@ -32,6 +36,8 @@ services:
     volumes:
       - nexus-data:/nexus-data
     restart: unless-stopped
+    networks:
+      - monitoring   # ✅ ajouté
 
   sonarqube:
     image: sonarqube:community
@@ -46,6 +52,8 @@ services:
       - sonarqube-extensions:/opt/sonarqube/extensions
       - sonarqube-temp:/opt/sonarqube/temp
     restart: unless-stopped
+    networks:
+      - monitoring   # ✅ ajouté
 
   prometheus:
     image: prom/prometheus
@@ -56,6 +64,8 @@ services:
       - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
       - prometheus-data:/prometheus
     restart: unless-stopped
+    networks:
+      - monitoring   # ✅ ajouté
 
   grafana:
     image: grafana/grafana
@@ -67,6 +77,8 @@ services:
     volumes:
       - grafana-data:/var/lib/grafana
     restart: unless-stopped
+    networks:
+      - monitoring   # ✅ ajouté
 
 volumes:
   nexus-data:
@@ -76,3 +88,6 @@ volumes:
   sonarqube-temp:
   prometheus-data:
   grafana-data:
+
+networks:
+  monitoring:   # ✅ réseau défini
