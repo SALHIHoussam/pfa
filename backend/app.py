@@ -2,6 +2,9 @@ from flask import Flask, jsonify
 from flask_cors import CORS
 from flask_jwt_extended import JWTManager
 from flask_apscheduler import APScheduler
+
+from prometheus_flask_exporter import PrometheusMetrics
+
 from models import db
 from routes.auth import auth_bp, blacklist
 from routes.reunion import reunion_bp
@@ -18,6 +21,15 @@ app.url_map.strict_slashes = False
 app.config.from_object(Config)
 
 print("SendGrid API Key:", os.getenv('SENDGRID_API_KEY'))
+
+# ✅ Monitoring Prometheus
+metrics = PrometheusMetrics(app)
+metrics.info('app_info', 'Application info', version='1.0.0')
+
+# ✅ Endpoint santé pour monitoring
+@app.route('/health')
+def health():
+    return jsonify({"status": "ok"}), 200
 
 # CORS pour autoriser le frontend React (localhost:3000) avec support des cookies (credentials)
 CORS(app, resources={r"/api/*": {"origins": "http://localhost:3000"}}, supports_credentials=True)
@@ -88,4 +100,5 @@ if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=False)  # Mettez debug=False pour sécurité
     # debug=True uniquement en dev
     # app.run(host="0.0.0.0", port=5000, debug=True)
+
 
