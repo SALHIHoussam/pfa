@@ -3,7 +3,6 @@ pipeline {
     tools {
         nodejs "node-18"
     }
-
     environment {
         DOCKERHUB_CREDENTIALS = credentials('dockerhubtokenpfa')
         NEXUS_CREDENTIALS = credentials('jenkins')
@@ -11,89 +10,79 @@ pipeline {
         COMPOSE_PROJECT_NAME = "pfa_project"
         BUILD_TIMESTAMP = "${new Date().format('yyyyMMdd_HHmmss')}"
     }
-
     triggers {
         githubPush()
     }
-
     stages {
 
-        stage('🧹 Clean Workspace') {
+        stage('Clean Workspace') {
             steps {
+                echo '🧹 Nettoyage complet du workspace Jenkins...'
                 deleteDir()
             }
         }
 
-        stage('📥 Checkout') {
+        stage('Checkout') {
             steps {
                 git branch: 'stagepfa', url: 'https://github.com/SALHIHoussam/pfa.git', credentialsId: 'github-token'
             }
         }
 
-        stage('⚙️ Build Frontend & Backend') {
+        stage('Build Frontend & Backend') {
             steps {
-                parallel (
-                    "Frontend": {
-                        dir('frontend') {
-                            sh 'CI=false npm ci && CI=false npm run build'
-                        }
-                    },
-                    "Backend": {
-                        dir('backend') {
-                            sh '''
-                            python3 -m venv venv
-                            . venv/bin/activate
-                            pip install --upgrade pip
-                            pip install -r requirements.txt
-                            '''
-                        }
-                    }
-                )
+                dir('frontend') {
+                    sh 'CI=false npm install && CI=false npm run build'
+                }
+                dir('backend') {
+                    sh '''
+                    python3 -m venv venv
+                    . venv/bin/activate
+                    pip install --upgrade pip
+                    pip install -r requirements.txt
+                    '''
+                }
             }
         }
 
-        stage('🧪 Run Tests') {
+        stage('Run Tests') {
             steps {
-                parallel (
-                    "Backend Tests": {
-                        dir('backend') {
-                            sh '. venv/bin/activate && pytest --cov=backend --cov-report=xml:backend/coverage.xml || true'
-                        }
-                    },
-                    "Frontend Tests": {
-                        dir('frontend') {
-                            sh 'CI=false npm test -- --coverage --watchAll=false || true'
-                        }
-                    }
-                )
+                dir('backend') {
+                    sh '. venv/bin/activate && python -m pytest --cov=backend --cov-report=xml:backend/coverage.xml || true'
+                }
+                dir('frontend') {
+                    sh 'CI=false npm test -- --coverage --watchAll=false || true'
+                }
             }
         }
 
-        stage('🚀 Start Monitoring Services') {
+        stage('Docker Compose Up Services Individuels') {
             steps {
                 script {
                     def services = [
-                        'nexus': 'http://127.0.0.1:8081',
-                        'sonarqube': 'http://127.0.0.1:9000/api/system/status',
-                        'prometheus': 'http://127.0.0.1:9090/metrics',
-                        'grafana': 'http://127.0.0.1:3001/api/health'
+                        'nexus': [port:8081, url:'http://127.0.0.1:8081'],
+                        'sonarqube': [port:9000, url:'http://127.0.0.1:9000/api/system/status'],
+                        'prometheus': [port:9090, url:'http://127.0.0.1:9090/metrics'],
+                        'grafana': [port:3001, url:'http://127.0.0.1:3001/api/health']
                     ]
-                    services.each { name, url ->
-                        echo "⏳ Starting $name ..."
-                        sh "docker-compose -f docker-compose.yml up -d ${name}"
-                        timeout(time: 5, unit: 'MINUTES') {
+
+                    services.each { svc, config ->
+                        echo "🚀 Démarrage de ${svc}..."
+                        sh "docker-compose -f docker-compose.yml up -d ${svc}"
+
+                        timeout(time: 10, unit: 'MINUTES') {
                             waitUntil {
-                                def status = sh(
-                                    script: "curl -s -o /dev/null -w '%{http_code}' $url || echo 0",
+                                def code = sh(
+                                    script: """curl -s -o /dev/null -w '%{http_code}' --max-time 10 --retry 5 --retry-delay 5 ${config.url} || echo 0""",
                                     returnStdout: true
                                 ).trim()
-                                if (status == '200' || status == '302') {
-                                    echo "✅ $name prêt !"
+                                if(code in ['200','302']) {
+                                    echo "✅ ${svc} est prêt ! (HTTP ${code})"
                                     return true
+                                } else {
+                                    echo "⏳ ${svc} pas encore prêt, HTTP ${code}..."
+                                    sleep 5
+                                    return false
                                 }
-                                echo "⏳ $name non prêt (HTTP $status)"
-                                sleep 5
-                                return false
                             }
                         }
                     }
@@ -101,9 +90,10 @@ pipeline {
             }
         }
 
-        stage('🔍 SonarQube Scan') {
+        stage('SonarQube Scan') {
             steps {
                 script {
+                    echo "🔍 Lancement de l'analyse SonarQube..."
                     withSonarQubeEnv('sonarqube-local') {
                         def scannerHome = tool 'sonar-scanner'
                         sh "${scannerHome}/bin/sonar-scanner -Dproject.settings=sonar-project.properties"
@@ -112,58 +102,81 @@ pipeline {
             }
         }
 
-        stage('🧠 SonarQube Quality Gate') {
+        stage('SonarQube Quality Gate') {
             steps {
                 script {
-                    timeout(time: 30, unit: 'MINUTES') {
+                    echo "⏳ Vérification du Quality Gate SonarQube..."
+                    timeout(time: 15, unit: 'MINUTES') {
                         waitForQualityGate abortPipeline: true
                     }
                 }
             }
         }
 
-        stage('📦 Package Artifacts') {
+        stage('Package Artifacts') {
             steps {
-                sh '''
-                tar -czf backend_src.tar.gz -C backend .
-                tar -czf frontend_build.tar.gz -C frontend/build .
-                '''
+                script {
+                    echo "📦 Création des archives backend et frontend..."
+                    sh '''
+                    tar -czf backend_src.tar.gz -C backend .
+                    tar -czf frontend_build.tar.gz -C frontend/build .
+                    
+                    [ -f backend_src.tar.gz ] || { echo "❌ backend_src.tar.gz missing"; exit 1; }
+                    [ -f frontend_build.tar.gz ] || { echo "❌ frontend_build.tar.gz missing"; exit 1; }
+                    '''
+                }
             }
         }
 
-        stage('⬆️ Upload to Nexus') {
+        stage('Upload Artifacts to Nexus') {
             steps {
                 withCredentials([usernamePassword(credentialsId: 'jenkins', usernameVariable: 'USR', passwordVariable: 'PWD')]) {
                     sh """
-                        curl -u $USR:$PWD --upload-file backend_src.tar.gz ${NEXUS_REPO_URL}/backend_${BUILD_TIMESTAMP}.tar.gz
-                        curl -u $USR:$PWD --upload-file frontend_build.tar.gz ${NEXUS_REPO_URL}/frontend_${BUILD_TIMESTAMP}.tar.gz
+                        curl -u $USR:$PWD --upload-file backend_src.tar.gz ${NEXUS_REPO_URL}/backend_src.tar.gz
+                        curl -u $USR:$PWD --upload-file frontend_build.tar.gz ${NEXUS_REPO_URL}/frontend_build.tar.gz
                     """
                 }
             }
         }
 
-        stage('🐳 Docker Build & Push') {
+        stage('Docker Compose Build & Push') {
             steps {
-                sh 'docker-compose -f docker-compose.yml build --no-cache'
-                sh "echo ${DOCKERHUB_CREDENTIALS_PSW} | docker login -u ${DOCKERHUB_CREDENTIALS_USR} --password-stdin"
-                sh 'docker-compose -f docker-compose.yml push'
+                script {
+                    echo "🐳 Construction des images Docker..."
+                    sh 'docker-compose -f docker-compose.yml build --no-cache'
+                    echo "🔑 Connexion à DockerHub..."
+                    sh "echo ${DOCKERHUB_CREDENTIALS_PSW} | docker login -u ${DOCKERHUB_CREDENTIALS_USR} --password-stdin"
+                    echo "📤 Push des images Docker..."
+                    sh 'docker-compose -f docker-compose.yml push'
+                }
             }
         }
 
-        stage('🚀 Docker Up') {
+        stage('Docker Compose Up (All Services)') {
             steps {
-                sh 'docker-compose -f docker-compose.yml up -d'
-                sh 'docker ps'
+                script {
+                    echo "🚀 Démarrage complet de tous les containers..."
+                    sh 'docker-compose -f docker-compose.yml up -d'
+                }
+            }
+        }
+
+        stage('Verify Containers') {
+            steps {
+                script {
+                    echo "🔍 Vérification des containers..."
+                    sh 'docker ps'
+                }
             }
         }
     }
 
     post {
         always {
-            echo "✅ Pipeline terminé (Build : ${BUILD_TIMESTAMP})"
+            echo "✅ Pipeline terminé."
         }
         failure {
-            echo "❌ Le pipeline a échoué. Vérifiez les logs SonarQube ou Docker."
+            echo "❌ Pipeline échoué !"
         }
     }
 }
