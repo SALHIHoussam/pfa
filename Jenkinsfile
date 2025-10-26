@@ -107,20 +107,38 @@ pipeline {
             steps {
                 script {
                     echo "⏳ Vérification du Quality Gate SonarQube..."
-                    // waitForQualityGate attend déjà que l'analyse soit terminée
-                    def qg = waitForQualityGate(abortPipeline: false)
-                    if (qg != null) {
-                        echo "✅ Quality Gate Status: ${qg.status}"
-                        if (qg.status != 'OK') {
-                            error("❌ Quality Gate échoué ! Statut: ${qg.status}")
+                    
+                    // Timeout global pour ne pas bloquer indéfiniment
+                    timeout(time: 10, unit: 'MINUTES') {
+                        waitUntil {
+                            try {
+                                // waitForQualityGate attend automatiquement que l'analyse soit terminée
+                                def qg = waitForQualityGate(abortPipeline: false)
+                                if (qg != null) {
+                                    echo "✅ Quality Gate Status: ${qg.status}"
+                                    if (qg.status != 'OK') {
+                                        error("❌ Quality Gate échoué ! Statut: ${qg.status}")
+                                    }
+                                    return true // terminé avec succès
+                                } else {
+                                    echo "⏳ Quality Gate pas encore disponible, réessai dans 10s..."
+                                    sleep 10
+                                    return false
+                                }
+                            } catch (Exception e) {
+                                echo "⚠️ Erreur lors de la vérification Quality Gate: ${e.message}"
+                                echo "⏳ Réessai dans 10s..."
+                                sleep 10
+                                return false
+                            }
                         }
-                    } else {
-                        error("❌ Impossible de récupérer le Quality Gate")
                     }
                 }
             }
         }
 
+        
+        
         stage('Package Artifacts') {
             steps {
                 script {
