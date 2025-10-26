@@ -51,6 +51,7 @@ pipeline {
                 }
                 dir('frontend') {
                     sh 'CI=false npm test -- --coverage --watchAll=false || true'
+                    sh 'ls -l coverage' // vérifier que lcov.info existe
                 }
             }
         }
@@ -108,7 +109,6 @@ pipeline {
                     echo "⏳ Vérification du Quality Gate SonarQube..."
                     timeout(time: 15, unit: 'MINUTES') {
                         waitUntil {
-                            // Vérifie l'état du Quality Gate toutes les 5 secondes
                             def qg = waitForQualityGate(abortPipeline: false, quiet: true)
                             if (qg != null) {
                                 echo "✅ Quality Gate Status: ${qg.status}"
