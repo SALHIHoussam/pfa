@@ -107,21 +107,15 @@ pipeline {
             steps {
                 script {
                     echo "⏳ Vérification du Quality Gate SonarQube..."
-                    timeout(time: 15, unit: 'MINUTES') {
-                        waitUntil {
-                            def qg = waitForQualityGate(abortPipeline: false, quiet: true)
-                            if (qg != null) {
-                                echo "✅ Quality Gate Status: ${qg.status}"
-                                if (qg.status != 'OK') {
-                                    error("❌ Quality Gate échoué ! Statut: ${qg.status}")
-                                }
-                                return true
-                            } else {
-                                echo "⏳ Quality Gate pas encore calculé, attente..."
-                                sleep 5
-                                return false
-                            }
+                    // waitForQualityGate attend déjà que l'analyse soit terminée
+                    def qg = waitForQualityGate(abortPipeline: false)
+                    if (qg != null) {
+                        echo "✅ Quality Gate Status: ${qg.status}"
+                        if (qg.status != 'OK') {
+                            error("❌ Quality Gate échoué ! Statut: ${qg.status}")
                         }
+                    } else {
+                        error("❌ Impossible de récupérer le Quality Gate")
                     }
                 }
             }
